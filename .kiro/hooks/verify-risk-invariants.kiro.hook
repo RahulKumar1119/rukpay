@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Verify Risk & Vault Invariants",
+  "description": "Automatically runs Go unit and property-based tests whenever backend risk, vault, or store files are modified.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend/internal/**/*.go"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "cd backend && go test -v ./..."
+  }
+}

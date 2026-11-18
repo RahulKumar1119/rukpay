@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "PII Redaction & Tone Check",
+  "description": "Audits frontend components on save to ensure no banned alarmist jargon or unmasked PII is rendered.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "frontend/src/**/*.tsx",
+      "frontend/src/**/*.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Audit the edited file against .kiro/steering/anti-panic-ux.md: verify no banned technical/alarmist jargon is shown to users and all account/UPI/phone strings pass through privacyMasker."
+  }
+}
