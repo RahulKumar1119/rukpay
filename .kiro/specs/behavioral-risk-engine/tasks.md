@@ -18,24 +18,24 @@ Test files are split per property or topic (not one large `*_pbt_test.go`) so in
     - Do not add any SQLite or logging dependency
     - _Requirements: 8.6, 9.5, 9.6, 12.5_
 
-- [ ] 2. Implement store core types, interface and mask validation
-  - [ ] 2.1 Define `VaultState` constants and `VaultRecord` in `backend/internal/store/types.go`
+- [x] 2. Implement store core types, interface and mask validation
+  - [x] 2.1 Define `VaultState` constants and `VaultRecord` in `backend/internal/store/types.go`
     - Six string constants (`StateInstantPass`, `StateRealityCheck`, `StateLocked15M`, `StateGuardianApproved`, `StateVetoed`, `StateExpired`), each holding its own name
     - `VaultRecord` with masked-only identifier fields, `dynamodbav` tags, `unixtime` on time fields, and no field for raw identifiers, OTP, PIN or password
     - _Requirements: 6.1, 6.3, 12.1, 12.2_
 
-  - [ ] 2.2 Define `VaultStore` interface, sentinel errors and `opError` in `backend/internal/store/store.go`
+  - [x] 2.2 Define `VaultStore` interface, sentinel errors and `opError` in `backend/internal/store/store.go`
     - `VaultStore` with exactly `Create`, `Get`, `UpdateIf`
     - `ErrAlreadyExists`, `ErrNotFound`, `ErrConditionFailed`, `ErrUnmaskedIdentifier`
     - `opError` with `Op`, `ID`, `Err`, an `Error()` string of operation and id only, and `Unwrap`
     - _Requirements: 7.1, 7.3, 7.5, 7.7, 7.8, 12.6_
 
-  - [ ] 2.3 Implement `ValidateMasked` in `backend/internal/store/mask.go`
+  - [x] 2.3 Implement `ValidateMasked` in `backend/internal/store/mask.go`
     - Regexes for `XXXX-XXXX-\d{4}`, `+91-XXXXXX\d{4}` and `r***@okaxis` style UPI masks
     - Empty identifier fields are allowed; any non-empty field that does not match returns `ErrUnmaskedIdentifier`
     - _Requirements: 12.3, 12.4_
 
-  - [ ]* 2.4 Write unit tests for state constants and mask validation
+  - [x] 2.4 Write unit tests for state constants and mask validation
     - Files: `backend/internal/store/types_test.go`, `backend/internal/store/mask_test.go`
     - Constants equal their own names; valid masks pass; raw account, phone and UPI values are rejected; empty fields pass
     - _Requirements: 6.1, 12.1, 12.3, 12.4_

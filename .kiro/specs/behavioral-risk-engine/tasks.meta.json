@@ -19,6 +19,61 @@
         "chatSessionId": "sess_fe2b09e8-e3c2-4a7f-9b35-534df2e1b5ba",
         "timestamp": 1795186060913
       }
+    ],
+    "2.1 Define `VaultState` constants and `VaultRecord` in `backend/internal/store/types.go`": [
+      {
+        "executionId": "986c3168-2dfa-4b12-bee8-f937a06d84c7",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795188604951
+      },
+      {
+        "executionId": "986c3168-2dfa-4b12-bee8-f937a06d84c7",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795188713124
+      }
+    ],
+    "2.2 Define `VaultStore` interface, sentinel errors and `opError` in `backend/internal/store/store.go`": [
+      {
+        "executionId": "986c3168-2dfa-4b12-bee8-f937a06d84c7",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795188736165
+      },
+      {
+        "executionId": "986c3168-2dfa-4b12-bee8-f937a06d84c7",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795188847360
+      }
+    ],
+    "2.3 Implement `ValidateMasked` in `backend/internal/store/mask.go`": [
+      {
+        "executionId": "986c3168-2dfa-4b12-bee8-f937a06d84c7",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795188736300
+      },
+      {
+        "executionId": "986c3168-2dfa-4b12-bee8-f937a06d84c7",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795188928479
+      }
+    ],
+    "2. Implement store core types, interface and mask validation": [
+      {
+        "executionId": "986c3168-2dfa-4b12-bee8-f937a06d84c7",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795188928573
+      }
+    ],
+    "2.4 Write unit tests for state constants and mask validation": [
+      {
+        "executionId": "22f2e8e3-1b4f-48e1-a3c8-269ef480a733",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189007361
+      },
+      {
+        "executionId": "22f2e8e3-1b4f-48e1-a3c8-269ef480a733",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189089834
+      }
     ]
   }
 }
