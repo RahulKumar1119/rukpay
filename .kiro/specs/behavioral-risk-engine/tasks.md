@@ -96,8 +96,8 @@ Test files are split per property or topic (not one large `*_pbt_test.go`) so in
 - [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement MemoryStore
-  - [ ] 5.1 Implement `backend/internal/store/memory.go`
+- [x] 5. Implement MemoryStore
+  - [x] 5.1 Implement `backend/internal/store/memory.go`
     - `MemoryStore` with `sync.RWMutex`, map storage and an injectable `now` clock
     - Every method returns `ctx.Err()` first when the context is cancelled
     - `Create` (write lock, `ErrAlreadyExists`), `Get` (read lock, `ErrNotFound` for missing or expired, returns a copy), `UpdateIf` (write lock, `ErrNotFound`, `ErrConditionFailed`, replace)

@@ -210,6 +210,25 @@
         "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
         "timestamp": 1795190618303
       }
+    ],
+    "5.1 Implement `backend/internal/store/memory.go`": [
+      {
+        "executionId": "b1f10938-7413-471b-b8ca-b314587c7d42",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795190851057
+      },
+      {
+        "executionId": "b1f10938-7413-471b-b8ca-b314587c7d42",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795191091836
+      }
+    ],
+    "5. Implement MemoryStore": [
+      {
+        "executionId": "b1f10938-7413-471b-b8ca-b314587c7d42",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795191091959
+      }
     ]
   }
 }
