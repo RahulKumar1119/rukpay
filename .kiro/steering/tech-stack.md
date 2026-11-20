@@ -14,8 +14,8 @@ inclusion: always
 ## 2. Strictly Enforced Stack (No Deviations)
 
 ### Backend (`/backend`)
-- **Language:** Go 1.22+ (`go.mod` module name: `github.com/<username>/rukpay/backend`)
-- **HTTP Router:** Standard library `net/http` (Go 1.22+ enhanced routing patterns like `POST /api/v1/transactions/evaluate`) — avoid heavy third-party routers.
+- **Language:** Go 1.21.1 (no Go 1.22+ language features or APIs) (`go.mod` module name: `github.com/<username>/rukpay/backend`)
+- **HTTP Router:** Standard library `net/http` with a small in-repo method-and-path dispatcher, because Go 1.21 `ServeMux` has no method or `{id}` patterns (e.g. `POST /api/v1/transactions/evaluate`). Avoid third-party routers.
 - **Deployment Target:** **AWS Lambda** (using `github.com/aws/aws-lambda-go/lambda` + `github.com/awslabs/aws-lambda-go-api-proxy/httpadapter`) with local `http.ListenAndServe` fallback when `AWS_LAMBDA_FUNCTION_NAME` is unset.
 - **Real-Time Communication:** Server-Sent Events (`SSE` via `text/event-stream`) or short-polling fallback (`/api/v1/vault/{id}`) for seamless compatibility across local servers, AWS Lambda Function URLs, and API Gateway.
 - **Persistence Layer (DynamoDB Only — NO SQLite):**

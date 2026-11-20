@@ -12,6 +12,6 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Audit the edited file against .kiro/steering/anti-panic-ux.md: verify no banned technical/alarmist jargon is shown to users and all account/UPI/phone strings pass through privacyMasker."
+    "prompt": "Load the web-design-guidelines skill, then audit the edited file against it and .kiro/steering/anti-panic-ux.md: verify no banned technical/alarmist jargon is shown to users and all account/UPI/phone strings pass through privacyMasker."
   }
 }

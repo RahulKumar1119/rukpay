@@ -2,15 +2,17 @@
 
 ## Overview
 
-Implementation language: Go 1.22+ (module `github.com/<username>/rukpay/backend`), as set by the design. The plan builds the `store` core types first (the `risk` package imports `VaultState` from them), then the pure `risk` scorer, then the `MemoryStore`, the `DynamoDBStore` with its factory, and finally a shared contract test suite that runs against both adapters using an in-process fake DynamoDB client. Property tests use `pgregory.net/rapid` with at least 1000 checks each. No SQLite and no logging packages are imported anywhere.
+Skills: load `golang-patterns` before any Go work (see `.kiro/steering/skills.md`).
+
+Implementation language: Go 1.21.1 (module `github.com/<username>/rukpay/backend`), as set by the design. The plan builds the `store` core types first (the `risk` package imports `VaultState` from them), then the pure `risk` scorer, then the `MemoryStore`, the `DynamoDBStore` with its factory, and finally a shared contract test suite that runs against both adapters using an in-process fake DynamoDB client. Property tests use `pgregory.net/rapid` with at least 1000 checks each. No SQLite and no logging packages are imported anywhere.
 
 Test files are split per property or topic (not one large `*_pbt_test.go`) so independent test tasks never edit the same file. Each test function name must be unique within its package.
 
 ## Tasks
 
-- [ ] 1. Set up backend module and dependencies
-  - [ ] 1.1 Create `backend/go.mod` and package skeletons
-    - Create `backend/go.mod` with module `github.com/<username>/rukpay/backend`, Go 1.22+
+- [x] 1. Set up backend module and dependencies
+  - [x] 1.1 Create `backend/go.mod` and package skeletons
+    - Create `backend/go.mod` with module `github.com/<username>/rukpay/backend`, Go 1.21.1
     - Add dependencies: `pgregory.net/rapid`, `github.com/aws/aws-sdk-go-v2`, `github.com/aws/aws-sdk-go-v2/config`, `github.com/aws/aws-sdk-go-v2/service/dynamodb`, `github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue`
     - Add `doc.go` files with package comments in `backend/internal/risk` and `backend/internal/store`
     - Do not add any SQLite or logging dependency

@@ -2,7 +2,9 @@
 
 ## Overview
 
-Implementation language is Go 1.22+ (module `github.com/<username>/rukpay/backend`), as fixed by the design. The plan starts with the store changes this feature needs from `behavioral-risk-engine` (new `VaultRecord` fields and `NewMemoryStoreWithClock`). It then builds `vault` (rules, lazy expiry, operations), `guardian` (token, evidence, hub, approve/veto), and `httpapi` (config, middleware, router), and ends with the two entrypoints. Dependency direction stays `httpapi` → `guardian` → `vault` → `store`, `risk`.
+Skills: load `golang-patterns` before any Go work (see `.kiro/steering/skills.md`).
+
+Implementation language is Go 1.21.1 (module `github.com/<username>/rukpay/backend`), as fixed by the design. The plan starts with the store changes this feature needs from `behavioral-risk-engine` (new `VaultRecord` fields and `NewMemoryStoreWithClock`). It then builds `vault` (rules, lazy expiry, operations), `guardian` (token, evidence, hub, approve/veto), and `httpapi` (config, middleware, router), and ends with the two entrypoints. Dependency direction stays `httpapi` → `guardian` → `vault` → `store`, `risk`.
 
 Property tests use `pgregory.net/rapid` with at least 1000 checks each, run under `go test ./...` with `MemoryStore`, an injected `Clock` and `httptest`. Test files are split per property or topic so independent test tasks never edit the same file. Each test function name must be unique within its package, and each property test carries the comment `// Feature: cooling-off-vault, Property N: <title>`.
 
@@ -180,7 +182,7 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
     - _Requirements: 10.7, 10.8, 10.9, 10.10, 10.11, 11.1, 11.2, 11.6, 5.4, 5.7_
 
   - [ ] 7.3 Implement the router and `Build` in `backend/internal/httpapi/router.go`
-    - Register the six Go 1.22 method/path patterns
+    - Register the six method/path routes through the in-repo dispatcher (`route.go`), not Go 1.22 `ServeMux` patterns
     - `evaluate` maps validation errors to 400 with the field name; `realityCheck` decodes `{answers?, reconfirm?}` with pointer fields, accepts exactly one (both, neither or `reconfirm:false` is 400) and dispatches to `RealityCheck` or `Reconfirm`; `guardianAction`, `getVault`, `fastForward` (404 when demo is off, before reading the vault)
     - `stream`: 400 missing `vault_id`, 404 unknown id, event-stream headers with `X-Accel-Buffering: no`, current View first, hub subscription, `: keep-alive` every 15 s (interval injectable), 25 s limit when `OnLambda`
     - `Build(ctx, cfg)` wires `store.NewFromEnv`, `Signer`, `Hub`, `vault.Service`, `guardian.Service`

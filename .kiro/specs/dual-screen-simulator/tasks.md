@@ -2,6 +2,8 @@
 
 ## Overview
 
+Skills: load `web-design-guidelines` before any frontend work, and `golang-patterns` for the one backend struct task (see `.kiro/steering/skills.md`).
+
 Implementation language is TypeScript (strict) on React 18 with Vite, Tailwind CSS and `lucide-react`, all in `frontend/`, as fixed by the design. One task also touches the Go backend: it adds the concrete `EvaluateRequest` and `Metadata` struct definitions that `cooling-off-vault/design.md` names but never declares (the open item flagged in this feature's design).
 
 The plan builds bottom-up: project scaffold, the backend struct definitions, the pure `lib/` modules (masker, copy, API client, presets, screen derivation, countdown), then the reducer, `VaultSync` and `useSimulator`, then components, and finally `App.tsx` wiring and smoke checks. Dependency direction stays components → `useSimulator` → `VaultSync`, `api.ts` → `privacyMasker.ts`.

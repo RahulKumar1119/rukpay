@@ -315,18 +315,17 @@ func Build(ctx context.Context, cfg Config) (http.Handler, error) // store.NewFr
 
 `LoadConfig` returns an error when `HMAC_SECRET_KEY` is empty and `DEMO_MODE != "true"`. In Demo_Mode with no key it fills `HMACKey` with 32 bytes from `crypto/rand` (Requirement 5.8). Entrypoints print the error text (it never contains the key) and exit non-zero.
 
-Routes, registered with Go 1.22 patterns:
+Routes. The project targets Go 1.21.1, whose `http.ServeMux` has no method or `{id}` patterns. `httpapi/route.go` holds a small dispatcher: a slice of `route{method, segments, handler}`. A segment is a literal or the single wildcard `{id}`. `ServeHTTP` splits the path on `/`, matches the first route whose method and segments fit, and stores the id in the request context (`idFrom(r)`). A path that matches with a different method gets 405 with an `Allow` header. No match gets 404 with the standard error body.
 
 ```go
-mux.HandleFunc("POST /api/v1/transactions/evaluate",         h.evaluate)
-mux.HandleFunc("POST /api/v1/vault/{id}/reality-check",      h.realityCheck)
-mux.HandleFunc("POST /api/v1/vault/{id}/guardian-action",    h.guardianAction)
-mux.HandleFunc("POST /api/v1/vault/{id}/demo-fast-forward",  h.fastForward)
-mux.HandleFunc("GET /api/v1/vault/{id}",                     h.getVault)
-mux.HandleFunc("GET /api/v1/events/stream",                  h.stream)
+rt.handle("POST", "/api/v1/transactions/evaluate",         h.evaluate)
+rt.handle("POST", "/api/v1/vault/{id}/reality-check",      h.realityCheck)
+rt.handle("POST", "/api/v1/vault/{id}/guardian-action",    h.guardianAction)
+rt.handle("POST", "/api/v1/vault/{id}/demo-fast-forward",  h.fastForward)
+rt.handle("GET",  "/api/v1/vault/{id}",                    h.getVault)
+rt.handle("GET",  "/api/v1/events/stream",                 h.stream)
 ```
-
-Middleware chain (outermost first): `logging` → `cors` (also answers `OPTIONS`) → `bodyLimit` (`http.MaxBytesReader`, 64 KiB, mapped to 413) → mux.
+Middleware chain (outermost first): `logging` → `cors` (also answers `OPTIONS`) → `bodyLimit` (`http.MaxBytesReader`, 64 KiB, mapped to 413) → router.
 
 | Concern | Behavior |
 |---|---|
@@ -412,6 +411,7 @@ backend/
     └── httpapi/
         ├── config.go
         ├── router.go          # routes, handlers
+        ├── route.go           # Go 1.21 method/path dispatcher
         ├── middleware.go      # logging, cors, body limit
         ├── errors.go
         ├── redact.go

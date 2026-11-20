@@ -175,7 +175,7 @@ Design decisions fixed for this feature:
 
 #### Acceptance Criteria
 
-1. THE Router SHALL register the routes `POST /api/v1/transactions/evaluate`, `POST /api/v1/vault/{id}/reality-check`, `POST /api/v1/vault/{id}/guardian-action`, `POST /api/v1/vault/{id}/demo-fast-forward`, `GET /api/v1/vault/{id}` and `GET /api/v1/events/stream` using `net/http` method and path patterns.
+1. THE Router SHALL register the routes `POST /api/v1/transactions/evaluate`, `POST /api/v1/vault/{id}/reality-check`, `POST /api/v1/vault/{id}/guardian-action`, `POST /api/v1/vault/{id}/demo-fast-forward`, `GET /api/v1/vault/{id}` and `GET /api/v1/events/stream` using a method-and-path dispatcher built on `net/http` that works on Go 1.21.1 (no Go 1.22 `ServeMux` patterns).
 2. THE Server_Entrypoint SHALL build the Router and serve it with `http.ListenAndServe` on the address from the `PORT` environment variable, defaulting to `8080`.
 3. THE Lambda_Entrypoint SHALL build the same Router and serve it through `httpadapter` and `lambda.Start`.
 4. WHEN `STORAGE_DRIVER` is unset, THE Server_Entrypoint SHALL use the `memory` driver.
