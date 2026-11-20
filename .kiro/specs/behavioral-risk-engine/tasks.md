@@ -105,8 +105,8 @@ Test files are split per property or topic (not one large `*_pbt_test.go`) so in
     - Wrap all returned sentinels in `opError` (operation and id only)
     - _Requirements: 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10, 8.1, 8.2, 8.3, 8.4, 12.3, 12.5, 12.6_
 
-- [ ] 6. Implement DynamoDBStore and factory
-  - [ ] 6.1 Implement `backend/internal/store/dynamodb.go`
+- [x] 6. Implement DynamoDBStore and factory
+  - [x] 6.1 Implement `backend/internal/store/dynamodb.go`
     - `DynamoDBClient` interface with only `PutItem` and `GetItem`; `DynamoDBStore` with client, table, `now`; `NewDynamoDBStore`
     - Items use `PK = VAULT#<id>`, `SK = META`, `attributevalue.MarshalMap`, and `expires_at` as epoch-seconds Number
     - `Create`: `PutItem` with `attribute_not_exists(PK)`; conditional failure maps to `ErrAlreadyExists`
@@ -116,13 +116,13 @@ Test files are split per property or topic (not one large `*_pbt_test.go`) so in
     - Check `ctx.Err()` first and call `ValidateMasked` before any write
     - _Requirements: 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10, 9.1, 9.2, 9.3, 9.4, 9.6, 10.1, 10.2, 10.3, 10.4, 10.5, 11.1, 11.2, 12.3, 12.6_
 
-  - [ ] 6.2 Implement `NewFromEnv` in `backend/internal/store/factory.go`
+  - [x] 6.2 Implement `NewFromEnv` in `backend/internal/store/factory.go`
     - Read `STORAGE_DRIVER` (`memory` or `dynamodb`), `DYNAMODB_TABLE_NAME` (default `RukPayVaults`), `DYNAMODB_ENDPOINT` (optional `BaseEndpoint`)
     - Build the AWS SDK v2 client via `config.LoadDefaultConfig` and `dynamodb.NewFromConfig`
     - Unknown driver returns an error that names the variable only
     - _Requirements: 8.5, 9.1, 9.5_
 
-  - [ ]* 6.3 Write the fake DynamoDB client in `backend/internal/store/fake_dynamodb_test.go`
+  - [x] 6.3 Write the fake DynamoDB client in `backend/internal/store/fake_dynamodb_test.go`
     - In-memory item map implementing `DynamoDBClient`
     - Evaluates `attribute_not_exists(PK)` and `attribute_exists(PK) AND #s = :expected`
     - Can be configured to fail a chosen call with `ConditionalCheckFailedException` or an arbitrary error; records the last input

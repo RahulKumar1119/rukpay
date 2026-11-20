@@ -229,6 +229,49 @@
         "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
         "timestamp": 1795191091959
       }
+    ],
+    "6.1 Implement `backend/internal/store/dynamodb.go`": [
+      {
+        "executionId": "f00562c1-ff4b-44d9-8f1c-28d9dbd6134c",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795191328687
+      },
+      {
+        "executionId": "f00562c1-ff4b-44d9-8f1c-28d9dbd6134c",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795191616034
+      }
+    ],
+    "6.2 Implement `NewFromEnv` in `backend/internal/store/factory.go`": [
+      {
+        "executionId": "f00562c1-ff4b-44d9-8f1c-28d9dbd6134c",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795191616206
+      },
+      {
+        "executionId": "f00562c1-ff4b-44d9-8f1c-28d9dbd6134c",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795191875196
+      }
+    ],
+    "6.3 Write the fake DynamoDB client in `backend/internal/store/fake_dynamodb_test.go`": [
+      {
+        "executionId": "01ffb86a-a9c3-49c0-91cf-22d72f2daffb",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795191948654
+      },
+      {
+        "executionId": "01ffb86a-a9c3-49c0-91cf-22d72f2daffb",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795192527290
+      }
+    ],
+    "6. Implement DynamoDBStore and factory": [
+      {
+        "executionId": "01ffb86a-a9c3-49c0-91cf-22d72f2daffb",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795192527377
+      }
     ]
   }
 }
