@@ -1,5 +1,14 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "3.6 Write property test for state mapping thresholds": {
+      "status": "passed",
+      "lastRunTimestamp": 1795189824772
+    },
+    "3.8 Write property test for the pass guarantee": {
+      "status": "passed",
+      "lastRunTimestamp": 1795190357502
+    }
+  },
   "executionHistory": {
     "1.1 Create `backend/go.mod` and package skeletons": [
       {
@@ -73,6 +82,133 @@
         "executionId": "22f2e8e3-1b4f-48e1-a3c8-269ef480a733",
         "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
         "timestamp": 1795189089834
+      }
+    ],
+    "3.1 Implement `backend/internal/risk/risk.go`": [
+      {
+        "executionId": "d3952b18-28ab-473e-9dd8-c76f3e4b689b",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189331372
+      },
+      {
+        "executionId": "d3952b18-28ab-473e-9dd8-c76f3e4b689b",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189467884
+      }
+    ],
+    "3. Implement the risk scoring engine": [
+      {
+        "executionId": "d3952b18-28ab-473e-9dd8-c76f3e4b689b",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189467964
+      }
+    ],
+    "3.2 Write unit tests for the risk engine": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189678263
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189847318
+      }
+    ],
+    "3.3 Write property test for invalid signal rejection": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189678484
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189847516
+      }
+    ],
+    "3.4 Write property test for reference-model scoring and range": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189678805
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189847904
+      }
+    ],
+    "3.5 Write property test for determinism": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189679197
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189848337
+      }
+    ],
+    "3.6 Write property test for state mapping thresholds": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189679377
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189848862
+      }
+    ],
+    "3.7 Write property test for the lock guarantee": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189849587
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795190379807
+      }
+    ],
+    "3.8 Write property test for the pass guarantee": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189850697
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795190380078
+      }
+    ],
+    "3.9 Write property test for call monotonicity": [
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795189851214
+      },
+      {
+        "executionId": "89d6c0ef-96ea-487c-a63f-88b3eb893f24",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795190380960
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "d0165384-4cb1-47b2-be1b-81b565c848af",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795190439859
+      },
+      {
+        "executionId": "d0165384-4cb1-47b2-be1b-81b565c848af",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795190618303
       }
     ]
   }

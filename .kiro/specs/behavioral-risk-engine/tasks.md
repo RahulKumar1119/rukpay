@@ -40,60 +40,60 @@ Test files are split per property or topic (not one large `*_pbt_test.go`) so in
     - Constants equal their own names; valid masks pass; raw account, phone and UPI values are rejected; empty fields pass
     - _Requirements: 6.1, 12.1, 12.3, 12.4_
 
-- [ ] 3. Implement the risk scoring engine
-  - [ ] 3.1 Implement `backend/internal/risk/risk.go`
+- [x] 3. Implement the risk scoring engine
+  - [x] 3.1 Implement `backend/internal/risk/risk.go`
     - Constants `RealityCheckThreshold = 40`, `LockThreshold = 75`, `MaxScore = 100`
     - `Signals` with the five JSON-tagged fields, `ValidationError`, `Result`
     - `Validate` (checks amount, age, retry in that order), `amountPoints`, `agePoints`, `retryPoints`, `Score` (capped sum), `MapState` (uses `store.VaultState`), `Evaluate`
     - No time, randomness, logging or external state
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.1, 3.2, 3.3, 3.4, 6.2, 12.4, 12.5_
 
-  - [ ]* 3.2 Write unit tests for the risk engine
+  - [x] 3.2 Write unit tests for the risk engine
     - File: `backend/internal/risk/risk_test.go`
     - Demo presets: ₹450 known contact is INSTANT_PASS, ₹18,000 new contact is REALITY_CHECK, ₹85,000 new contact late night on a call is LOCKED_15M
     - Tier boundary examples (1999/2000, 9999/10000, 24999/25000, 23/24, 71/72, retry 1/2/3), score 39/40 and 74/75 state mapping, validation error field names
     - _Requirements: 1.2, 1.3, 1.4, 2.2, 2.3, 2.6, 3.1, 3.2, 3.3, 4.3, 4.4, 4.5_
 
-  - [ ]* 3.3 Write property test for invalid signal rejection
+  - [x] 3.3 Write property test for invalid signal rejection
     - File: `backend/internal/risk/pbt_invalid_test.go`
     - **Property 1: Invalid signals are rejected with the offending field**
     - **Validates: Requirements 1.2, 1.3, 1.4**
 
-  - [ ]* 3.4 Write property test for reference-model scoring and range
+  - [x] 3.4 Write property test for reference-model scoring and range
     - File: `backend/internal/risk/pbt_score_test.go`
     - **Property 2: Score equals the reference model and stays in range**
     - Independent reference implementation in the test; generators include every tier boundary value
     - **Validates: Requirements 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 5.3, 5.5**
 
-  - [ ]* 3.5 Write property test for determinism
+  - [x] 3.5 Write property test for determinism
     - File: `backend/internal/risk/pbt_determinism_test.go`
     - **Property 3: Scoring is deterministic**
     - **Validates: Requirements 2.8**
 
-  - [ ]* 3.6 Write property test for state mapping thresholds
+  - [x] 3.6 Write property test for state mapping thresholds
     - File: `backend/internal/risk/pbt_mapstate_test.go`
     - **Property 4: State mapping follows the thresholds**
     - **Validates: Requirements 3.1, 3.2, 3.3**
 
-  - [ ]* 3.7 Write property test for the lock guarantee
+  - [x] 3.7 Write property test for the lock guarantee
     - File: `backend/internal/risk/pbt_lock_test.go`
     - **Property 5: Lock guarantee**
     - At least 1000 generated inputs
     - **Validates: Requirements 4.1, 5.1**
 
-  - [ ]* 3.8 Write property test for the pass guarantee
+  - [x] 3.8 Write property test for the pass guarantee
     - File: `backend/internal/risk/pbt_pass_test.go`
     - **Property 6: Pass guarantee**
     - At least 1000 generated inputs
     - **Validates: Requirements 4.2, 5.2**
 
-  - [ ]* 3.9 Write property test for call monotonicity
+  - [x] 3.9 Write property test for call monotonicity
     - File: `backend/internal/risk/pbt_monotonic_test.go`
     - **Property 7: Unknown call never lowers the score**
     - At least 1000 generated inputs
     - **Validates: Requirements 5.4**
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Implement MemoryStore
