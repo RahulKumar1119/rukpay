@@ -10,27 +10,27 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
 
 ## Tasks
 
-- [ ] 1. Update the behavioral-risk-engine store for the vault feature
-  - [ ] 1.1 Replace `LockExpiresAt` with the new `VaultRecord` fields in `backend/internal/store/types.go`
+- [x] 1. Update the behavioral-risk-engine store for the vault feature
+  - [x] 1.1 Replace `LockExpiresAt` with the new `VaultRecord` fields in `backend/internal/store/types.go`
     - Remove `LockExpiresAt time.Time`
     - Add `LockDeadline int64` (`dynamodbav:"lock_deadline"`), `TokenExpiry int64` (`token_expiry`), `Settled bool` (`settled`), `Reason string` (`reason`), `EvidenceSummary string` (`evidence,omitempty`)
     - Keep all identifier fields masked-only; add no field for raw identifiers, OTP, PIN or password
     - Fix any other file in `store` or `risk` that still references `LockExpiresAt`
     - _Requirements: 1.4, 1.8, 4.1, 4.5, 6.4, 9.5_
 
-  - [ ] 1.2 Add `NewMemoryStoreWithClock(now func() time.Time)` in `backend/internal/store/memory.go`
+  - [x] 1.2 Add `NewMemoryStoreWithClock(now func() time.Time)` in `backend/internal/store/memory.go`
     - `NewMemoryStore()` delegates to it with `time.Now`
     - The injected clock drives record-expiry checks in `Get`, so vault tests control record expiry and lock expiry from one fake clock
     - No new `VaultStore` method is added
     - _Requirements: 4.7, 12.11_
 
-  - [ ]* 1.3 Update the store tests for the new fields
+  - [x] 1.3 Update the store tests for the new fields
     - Files: `backend/internal/store/contract_test.go`, `backend/internal/store/fake_dynamodb_test.go`, `backend/internal/store/pbt_roundtrip_test.go`, `backend/internal/store/pbt_layout_test.go`, `backend/internal/store/types_test.go`
     - Rapid generators produce the new fields (including zero `LockDeadline`); round trip equality and the DynamoDB item layout cover `lock_deadline`, `token_expiry`, `settled`, `reason`, `evidence`
     - Add a unit test that `NewMemoryStoreWithClock` expires records by the injected clock
     - _Requirements: 1.8, 4.7, 12.11_
 
-- [ ] 2. Checkpoint - Ensure all tests pass
+- [x] 2. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 3. Implement shared redaction and the `vault` package
