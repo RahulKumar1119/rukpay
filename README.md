@@ -234,9 +234,14 @@ One record describes one vault. It holds masked identifiers only.
 | `upi_masked` | string | `r***@okaxis`, optional |
 | `phone_masked` | string | `+91-XXXXXX3210`, optional |
 | `amount_inr` | int64 | Amount in rupees |
-| `created_at`, `lock_expires_at` | time | Stored as Unix epoch seconds |
+| `created_at` | time | Stored as Unix epoch seconds |
 | `version` | int | Owned by the caller. The store never changes it. |
 | `expires_at` | time | Unix epoch seconds. DynamoDB TTL attribute. |
+| `lock_deadline` | int64 | When the lock ends, in epoch seconds. 0 means never locked. |
+| `token_expiry` | int64 | The lock deadline as first set. A demo fast-forward never changes it. |
+| `settled` | bool | The user has finished the step this state asks for |
+| `reason` | string | Plain-language explanation for the user. No identifiers. |
+| `evidence` | string | Masked report written when a vault is vetoed. Optional. |
 
 There is no field for raw account numbers, raw UPI IDs, raw phone numbers, OTPs, PINs or passwords.
 
