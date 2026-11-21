@@ -128,77 +128,77 @@ Test files are split per property or topic (not one large `*_pbt_test.go`) so in
     - Can be configured to fail a chosen call with `ConditionalCheckFailedException` or an arbitrary error; records the last input
     - _Requirements: 11.3, 11.5_
 
-- [ ] 7. Shared contract tests for both adapters
-  - [ ]* 7.1 Write the contract harness in `backend/internal/store/contract_test.go`
+- [x] 7. Shared contract tests for both adapters
+  - [x] 7.1 Write the contract harness in `backend/internal/store/contract_test.go`
     - Helper that runs a test body once with `MemoryStore` and once with `DynamoDBStore` over the fake client, each with a controllable clock
     - Rapid generators for valid `VaultRecord` values with masked identifiers
     - _Requirements: 11.5, 11.6_
 
-  - [ ]* 7.2 Write property test for Create/Get round trip
+  - [x] 7.2 Write property test for Create/Get round trip
     - File: `backend/internal/store/pbt_roundtrip_test.go`
     - **Property 8: Create then Get round trip**
     - **Validates: Requirements 7.2, 7.4, 9.6**
 
-  - [ ]* 7.3 Write property test for duplicate Create
+  - [x] 7.3 Write property test for duplicate Create
     - File: `backend/internal/store/pbt_duplicate_test.go`
     - **Property 9: Duplicate Create is rejected and leaves the record unchanged**
     - **Validates: Requirements 7.3, 10.3**
 
-  - [ ]* 7.4 Write property test for UpdateIf compare-and-swap
+  - [x] 7.4 Write property test for UpdateIf compare-and-swap
     - File: `backend/internal/store/pbt_updateif_test.go`
     - **Property 10: UpdateIf is a compare-and-swap on state**
     - Include state pairs that are not legal transitions
     - **Validates: Requirements 7.6, 7.7, 7.9, 10.4**
 
-  - [ ]* 7.5 Write property test for returned copies
+  - [x] 7.5 Write property test for returned copies
     - File: `backend/internal/store/pbt_copy_test.go`
     - **Property 11: Returned records are copies**
     - **Validates: Requirements 8.3**
 
-  - [ ]* 7.6 Write property test for expired records
+  - [x] 7.6 Write property test for expired records
     - File: `backend/internal/store/pbt_expired_test.go`
     - **Property 12: Expired records are not found**
     - **Validates: Requirements 7.4, 9.4**
 
-  - [ ]* 7.7 Write property test for unmasked identifiers
+  - [x] 7.7 Write property test for unmasked identifiers
     - File: `backend/internal/store/pbt_unmasked_test.go`
     - **Property 14: Unmasked identifiers are never persisted**
     - **Validates: Requirements 12.3**
 
-  - [ ]* 7.8 Write property test for DynamoDB item layout
+  - [x] 7.8 Write property test for DynamoDB item layout
     - File: `backend/internal/store/pbt_layout_test.go`
     - **Property 13: DynamoDB item layout**
     - DynamoDB adapter only, inspecting the fake client's stored item
     - **Validates: Requirements 9.2, 9.3**
 
-  - [ ]* 7.9 Write property test for error wrapping and non-leakage
+  - [x] 7.9 Write property test for error wrapping and non-leakage
     - File: `backend/internal/store/pbt_errors_test.go`
     - **Property 15: Errors wrap the cause and leak no record values**
     - DynamoDB adapter only, with an injected non-conditional client error
     - **Validates: Requirements 10.5, 12.6**
 
-  - [ ]* 7.10 Write unit tests for DynamoDB and factory examples
+  - [x] 7.10 Write unit tests for DynamoDB and factory examples
     - File: `backend/internal/store/dynamodb_test.go`
     - Duplicate create, missing get, expired get, successful and failed conditional update, update of a missing id (conditional failure then empty read gives `ErrNotFound`), non-conditional client error, `ConditionExpression` strings, cancelled context on every method, default table name `RukPayVaults`, `NewFromEnv` driver selection and unknown-driver error
     - _Requirements: 7.5, 7.8, 7.10, 8.5, 9.1, 9.4, 9.5, 10.1, 10.2, 10.3, 10.4, 10.5, 11.4_
 
-  - [ ]* 7.11 Write a concurrency test for MemoryStore
+  - [x] 7.11 Write a concurrency test for MemoryStore
     - File: `backend/internal/store/memory_concurrency_test.go`
     - 50 goroutines call `UpdateIf` on one id with the same expected state; exactly one succeeds and the rest get `ErrConditionFailed` (run with `go test -race`)
     - _Requirements: 8.2, 8.4_
 
-  - [ ]* 7.12 Write smoke tests for forbidden imports
+  - [x] 7.12 Write smoke tests for forbidden imports
     - File: `backend/internal/store/imports_test.go`
     - Parse package imports with `go/parser` for `store` and `risk`; assert no SQLite package and no `log`, `log/slog` or third-party logger import
     - _Requirements: 8.6, 12.5_
 
-- [ ] 8. Verify infrastructure schema
-  - [ ] 8.1 Create or confirm `infra/dynamodb-table.json`
+- [x] 8. Verify infrastructure schema
+  - [x] 8.1 Create or confirm `infra/dynamodb-table.json`
     - Table `RukPayVaults`: partition key `PK` (S), sort key `SK` (S), on-demand billing, TTL attribute `expires_at`
     - Leave the file unchanged if it already matches
     - _Requirements: 9.1, 9.2, 9.3_
 
-- [ ] 9. Final checkpoint - Ensure all tests pass
+- [x] 9. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
