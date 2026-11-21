@@ -1,0 +1,31 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "RukPay vault table. One item per cooling-off vault, keyed PK = VAULT#<id> and SK = META. On-demand capacity. DynamoDB TTL removes items once expires_at (Unix epoch seconds) has passed.",
+  "Resources": {
+    "RukPayVaults": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "RukPayVaults",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          { "AttributeName": "PK", "AttributeType": "S" },
+          { "AttributeName": "SK", "AttributeType": "S" }
+        ],
+        "KeySchema": [
+          { "AttributeName": "PK", "KeyType": "HASH" },
+          { "AttributeName": "SK", "KeyType": "RANGE" }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "TableName": {
+      "Description": "Value for the DYNAMODB_TABLE_NAME environment variable.",
+      "Value": { "Ref": "RukPayVaults" }
+    }
+  }
+}
