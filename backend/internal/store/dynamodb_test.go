@@ -31,9 +31,12 @@ func examplesRecord(id string, state VaultState) VaultRecord {
 		PhoneMasked:        "+91-XXXXXX3210",
 		AmountINR:          85000,
 		CreatedAt:          epoch,
-		LockExpiresAt:      epoch.Add(15 * time.Minute),
 		Version:            1,
 		ExpiresAt:          epoch.Add(24 * time.Hour),
+		LockDeadline:       epoch.Add(15 * time.Minute).Unix(),
+		TokenExpiry:        epoch.Add(15 * time.Minute).Unix(),
+		Settled:            false,
+		Reason:             "We are holding this payment safely for 15 minutes.",
 	}
 }
 

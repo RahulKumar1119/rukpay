@@ -31,9 +31,20 @@ type MemoryStore struct {
 
 // NewMemoryStore returns an empty MemoryStore that reads time from time.Now.
 func NewMemoryStore() *MemoryStore {
+	return NewMemoryStoreWithClock(time.Now)
+}
+
+// NewMemoryStoreWithClock returns an empty MemoryStore that reads time from
+// now. The clock decides which records have expired in Get and UpdateIf, so a
+// test can drive record expiry and the vault's lock expiry from one fake clock.
+// A nil now means time.Now.
+func NewMemoryStoreWithClock(now func() time.Time) *MemoryStore {
+	if now == nil {
+		now = time.Now
+	}
 	return &MemoryStore{
 		data: make(map[string]VaultRecord),
-		now:  time.Now,
+		now:  now,
 	}
 }
 

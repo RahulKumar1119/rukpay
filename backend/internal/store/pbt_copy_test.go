@@ -28,9 +28,13 @@ func TestReturnedRecordsAreCopies(t *testing.T) {
 		got.PhoneMasked = "changed"
 		got.AmountINR++
 		got.CreatedAt = got.CreatedAt.Add(time.Hour)
-		got.LockExpiresAt = got.LockExpiresAt.Add(time.Hour)
 		got.Version++
 		got.ExpiresAt = got.ExpiresAt.Add(time.Hour)
+		got.LockDeadline++
+		got.TokenExpiry++
+		got.Settled = !got.Settled
+		got.Reason += " changed"
+		got.EvidenceSummary += " changed"
 
 		// Change the record that was passed to Create, too.
 		rec.State = StateVetoed

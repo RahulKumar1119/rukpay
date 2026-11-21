@@ -4,7 +4,7 @@ import "time"
 
 // VaultState names a state of the cooling-off vault. The store persists any
 // VaultState as given; validating transitions between states belongs to the
-// later vault package (Requirement 6.3).
+// vault package (Requirement 6.3).
 type VaultState string
 
 // Vault states. Each constant holds its own name as its string value
@@ -25,6 +25,11 @@ const (
 // Version is owned by the caller. The store writes a record as given and never
 // increments Version. ExpiresAt is the DynamoDB TTL attribute, stored as Unix
 // epoch seconds.
+//
+// The last five fields belong to the cooling-off vault. The store keeps them as
+// given and gives them no meaning. LockDeadline and TokenExpiry are int64 epoch
+// seconds, not time.Time, so that a zero value ("never locked") round-trips
+// through DynamoDB unchanged and compares with ==.
 type VaultRecord struct {
 	ID                 string     `dynamodbav:"id"`
 	State              VaultState `dynamodbav:"state"`
@@ -35,7 +40,20 @@ type VaultRecord struct {
 	PhoneMasked        string     `dynamodbav:"phone_masked,omitempty"`
 	AmountINR          int64      `dynamodbav:"amount_inr"`
 	CreatedAt          time.Time  `dynamodbav:"created_at,unixtime"`
-	LockExpiresAt      time.Time  `dynamodbav:"lock_expires_at,unixtime"`
 	Version            int        `dynamodbav:"version"`
 	ExpiresAt          time.Time  `dynamodbav:"expires_at,unixtime"`
+
+	// LockDeadline is when the lock ends, in epoch seconds. It is 0 when the
+	// vault was never locked.
+	LockDeadline int64 `dynamodbav:"lock_deadline"`
+	// TokenExpiry is the lock deadline as first set, in epoch seconds. A
+	// demo fast-forward moves LockDeadline but never TokenExpiry.
+	TokenExpiry int64 `dynamodbav:"token_expiry"`
+	// Settled reports that the user has finished the step this state asks for.
+	Settled bool `dynamodbav:"settled"`
+	// Reason is a plain-language explanation shown to the user. It holds no
+	// identifiers.
+	Reason string `dynamodbav:"reason"`
+	// EvidenceSummary is the masked report written when a vault is vetoed.
+	EvidenceSummary string `dynamodbav:"evidence,omitempty"`
 }

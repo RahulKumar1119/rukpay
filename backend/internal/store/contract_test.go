@@ -192,6 +192,14 @@ func contractOptional(g *rapid.Generator[string]) *rapid.Generator[string] {
 	return rapid.OneOf(rapid.Just(""), g)
 }
 
+// contractReasonGen draws a plain-language reason: empty or printable text.
+func contractReasonGen() *rapid.Generator[string] {
+	return rapid.OneOf(
+		rapid.Just(""),
+		rapid.StringMatching(`^[ -~]{1,80}$`),
+	)
+}
+
 func contractAmountGen() *rapid.Generator[int64] {
 	return rapid.OneOf(
 		rapid.SampledFrom([]int64{1, 450, 1999, 2000, 9999, 10000, 18000, 24999, 25000, 85000, math.MaxInt32}),
@@ -222,9 +230,23 @@ func contractRecordGen() *rapid.Generator[VaultRecord] {
 			Version:            rapid.IntRange(0, 100).Draw(t, "version"),
 			ExpiresAt:          epoch.Add(time.Duration(expiresIn) * time.Second),
 		}
+		// A locked vault has a deadline. A zero LockDeadline and TokenExpiry
+		// mean "never locked" and must round-trip like any other value. A
+		// deadline earlier than the token expiry is a demo fast-forward.
 		if rapid.Bool().Draw(t, "locked") {
-			rec.LockExpiresAt = rec.CreatedAt.Add(15 * time.Minute)
+			tokenExpiry := rec.CreatedAt.Add(15 * time.Minute).Unix()
+			rec.TokenExpiry = tokenExpiry
+			rec.LockDeadline = rapid.OneOf(
+				rapid.Just(tokenExpiry),
+				rapid.Int64Range(rec.CreatedAt.Unix(), tokenExpiry),
+			).Draw(t, "lock_deadline")
 		}
+		rec.Settled = rapid.Bool().Draw(t, "settled")
+		rec.Reason = contractReasonGen().Draw(t, "reason")
+		rec.EvidenceSummary = rapid.OneOf(
+			rapid.Just(""),
+			rapid.StringMatching(`^[ -~]{1,120}$`),
+		).Draw(t, "evidence")
 		return rec
 	})
 }
@@ -234,7 +256,6 @@ func contractRecordGen() *rapid.Generator[VaultRecord] {
 // returns times in the local zone.
 func contractNormalize(rec VaultRecord) VaultRecord {
 	rec.CreatedAt = rec.CreatedAt.UTC()
-	rec.LockExpiresAt = rec.LockExpiresAt.UTC()
 	rec.ExpiresAt = rec.ExpiresAt.UTC()
 	return rec
 }
@@ -283,9 +304,8 @@ func TestContractGeneratorsProduceValidRecords(t *testing.T) {
 			rt.Fatalf("generated record fails ValidateMasked: %v (%+v)", err, rec)
 		}
 		for name, ts := range map[string]time.Time{
-			"CreatedAt":     rec.CreatedAt,
-			"LockExpiresAt": rec.LockExpiresAt,
-			"ExpiresAt":     rec.ExpiresAt,
+			"CreatedAt": rec.CreatedAt,
+			"ExpiresAt": rec.ExpiresAt,
 		} {
 			if ts.Nanosecond() != 0 {
 				rt.Fatalf("%s has a sub-second part: %v", name, ts)
