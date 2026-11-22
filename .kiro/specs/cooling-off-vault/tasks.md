@@ -33,31 +33,31 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
 - [x] 2. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Implement shared redaction and the `vault` package
-  - [ ] 3.1 Implement `backend/internal/redact/redact.go`
+- [x] 3. Implement shared redaction and the `vault` package
+  - [x] 3.1 Implement `backend/internal/redact/redact.go`
     - `redact.Text(s string) string` replaces matches of `(?i)\b(otp|pin|password|passcode)\b\s*[:=]?\s*\S+` with `[REDACTED]`
     - Lives in its own package so `vault`, `guardian` and `httpapi` can all use it without an import cycle
     - _Requirements: 11.3, 6.8, 8.9_
 
-  - [ ] 3.2 Implement transitions and answers in `backend/internal/vault/transitions.go` and `backend/internal/vault/answers.go`
+  - [x] 3.2 Implement transitions and answers in `backend/internal/vault/transitions.go` and `backend/internal/vault/answers.go`
     - `allowed` table and `CanTransition(from, to)` permitting only RC→LOCKED, LOCKED→APPROVED, LOCKED→VETOED, LOCKED→EXPIRED
     - `Answer`, `Answers`, `ErrInvalidAnswers`, and `CheckAnswers` returning `lock = coercion==YES || secrecy==YES || verification==NO`
     - `ErrInvalidTransition`, `ErrNotDemoMode`, `ConflictError{Current View}`
     - _Requirements: 2.1, 2.3, 2.4, 3.2, 3.3, 3.4, 3.5, 3.7_
 
-  - [ ] 3.3 Implement calm copy in `backend/internal/vault/messages.go`
+  - [x] 3.3 Implement calm copy in `backend/internal/vault/messages.go`
     - All user-facing strings as constants, including the protective-pause sentence stating the 15-minute hold
     - `reasonFor(state, signals)` builds the reason from true Signals only, using plain phrases and no banned phrases or technical terms
     - Pass every reason through `redact.Text`
     - _Requirements: 11.3, 11.4, 11.5_
 
-  - [ ] 3.4 Implement `View` and `Metadata` in `backend/internal/vault/view.go`
+  - [x] 3.4 Implement `View` and `Metadata` in `backend/internal/vault/view.go`
     - `View` JSON fields per design: `vault_id`, `state`, `settled`, `risk_score`, `remaining_seconds`, `reconfirm_required`, `reason`, `metadata`, `guardian_token` (LOCKED_15M only), `evidence_summary` (VETOED only)
     - `view(rec, now)` computes `remaining_seconds = max(0, LockDeadline - now)` only while LOCKED, recomputes the token with `issuer.Issue(id, rec.TokenExpiry)` for LOCKED_15M only, and sets `reconfirm_required` when EXPIRED and not settled
     - Define `Clock`, `TokenIssuer` and `Observer` interfaces
     - _Requirements: 4.1, 4.4, 7.1, 7.2, 7.3, 8.9, 5.9_
 
-  - [ ] 3.5 Implement `Service` in `backend/internal/vault/vault.go`
+  - [x] 3.5 Implement `Service` in `backend/internal/vault/vault.go`
     - `New(store, clock, demo, issuer, observer)` plus a settable evidence-builder function field so `vault` never imports `guardian`
     - `load` with lazy expiry via `UpdateIf(LOCKED_15M → EXPIRED)`, re-reading on `ErrConditionFailed`, publishing on success
     - `apply` returning `*ConflictError` on wrong state or lost race and `ErrInvalidTransition` before any write; bumps `Version`; publishes after a successful write
@@ -65,60 +65,60 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
     - No `go func`, `time.AfterFunc`, `log` or SQLite import in this package
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 1.8, 2.2, 2.5, 2.6, 2.7, 3.1, 3.6, 3.8, 3.9, 4.2, 4.3, 4.5, 4.6, 4.7, 6.1, 6.3, 7.5, 9.1, 9.3, 9.4, 9.5, 9.6, 11.7_
 
-  - [ ]* 3.6 Write unit tests for the vault service
+  - [x] 3.6 Write unit tests for the vault service
     - File: `backend/internal/vault/vault_test.go`
     - Demo preset flows (₹450 → INSTANT_PASS, ₹18,000 → REALITY_CHECK, ₹85,000 → LOCKED_15M with token), vault id format (32 hex chars, no collisions across 10,000 ids), cancelled context writes nothing, lazy-expiry race re-read, reality-check reject of an already-settled vault
     - _Requirements: 1.1, 1.5, 2.6, 3.8, 4.2_
 
-  - [ ]* 3.7 Write property test for the transition table
+  - [x] 3.7 Write property test for the transition table
     - File: `backend/internal/vault/pbt_transitions_test.go`
     - **Property 3: Transition table is exact**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4**
 
-  - [ ]* 3.8 Write property test for creation matching the risk engine
+  - [x] 3.8 Write property test for creation matching the risk engine
     - File: `backend/internal/vault/pbt_creation_test.go`
     - **Property 1: Creation matches the risk engine**
     - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.8**
 
-  - [ ]* 3.9 Write property tests for reality-check outcomes and bad requests
+  - [x] 3.9 Write property tests for reality-check outcomes and bad requests
     - File: `backend/internal/vault/pbt_realitycheck_test.go`
     - **Property 6: Reality check outcome** (all 8 answer combinations plus random clock)
     - **Property 7: Bad reality-check requests change nothing**
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8**
 
-  - [ ]* 3.10 Write property tests for lazy expiry and reconfirmation
+  - [x] 3.10 Write property tests for lazy expiry and reconfirmation
     - File: `backend/internal/vault/pbt_expiry_test.go`
     - **Property 8: Lazy expiry follows the clock** (offsets before, at and after `lock_deadline`)
     - **Property 9: Reconfirmation settles only an expired vault**
     - **Validates: Requirements 4.1, 4.2, 4.4, 4.5, 4.6, 7.5**
 
-  - [ ]* 3.11 Write property tests for operation sequences
+  - [x] 3.11 Write property tests for operation sequences
     - File: `backend/internal/vault/pbt_sequences_test.go`
     - **Property 4: Operation sequences only make permitted state changes** (model tracks expected state and `Settled`)
     - **Property 10: Settled only where permitted**
     - **Validates: Requirements 2.1, 2.4, 12.2, 12.3, 12.4**
 
-  - [ ]* 3.12 Write property test for concurrent callers
+  - [x] 3.12 Write property test for concurrent callers
     - File: `backend/internal/vault/pbt_concurrency_test.go`
     - **Property 5: Concurrent callers produce exactly one winner** (at least 50 goroutines, run with `-race`)
     - **Validates: Requirements 2.5, 2.6, 2.7, 12.9**
 
-  - [ ]* 3.13 Write property test for fast-forward
+  - [x] 3.13 Write property test for fast-forward
     - File: `backend/internal/vault/pbt_fastforward_test.go`
     - **Property 18: Fast-forward only shortens the lock** (service level: `ErrNotDemoMode` with demo off, 409 for non-locked)
     - **Validates: Requirements 9.1, 9.3, 9.4, 9.5, 9.6, 12.8**
 
-  - [ ]* 3.14 Write property test for the read view
+  - [x] 3.14 Write property test for the read view
     - File: `backend/internal/vault/pbt_view_test.go`
     - **Property 17: Read view is safe and complete** (token only in LOCKED_15M, evidence only in VETOED, no key, OTP, PIN or password in any field)
     - **Validates: Requirements 5.9, 7.1, 7.2, 7.3, 8.9**
 
-  - [ ]* 3.15 Write property test for calm and redacted messages
+  - [x] 3.15 Write property test for calm and redacted messages
     - File: `backend/internal/vault/pbt_messages_test.go`
     - **Property 20: Messages are calm and redacted**
     - **Validates: Requirements 11.3, 11.4, 11.5**
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Implement the `guardian` package
