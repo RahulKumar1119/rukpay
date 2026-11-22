@@ -5,7 +5,7 @@
 
 Anti-panic behavioral payment firewall combining scam-stress detection, 15-minute cooling-off locks, and family co-approval. Built for Kiroween 2026.
 
-> **Project status:** the backend foundation is built and tested: the behavioral risk engine and the vault store (in-memory and DynamoDB). The cooling-off state machine, HTTP API, guardian flow and the React front end are planned and not built yet. See [Status](#status).
+> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB) and the cooling-off vault rules. The guardian flow, HTTP API and the React front end are planned and not built yet. See [Status](#status).
 
 ## The problem
 
@@ -65,7 +65,9 @@ Three more states complete the vault life cycle: `GUARDIAN_APPROVED`, `VETOED` a
 - A payment below ₹2,000, to a beneficiary 72 hours old or more, in daytime, with no call and at most one retry, always scores below 40 and passes.
 - Turning `active_unknown_call` on never lowers the score.
 
-### 5. The reality check and the guardian (planned)
+### 5. The reality check and the guardian
+
+The reality check is built in the `vault` package. The guardian's screen and the approve and block actions are planned.
 
 The three reality-check questions are:
 
@@ -73,7 +75,7 @@ The three reality-check questions are:
 2. Did the caller ask you not to tell your family or bank staff?
 3. Have you checked this person or bill without using a phone number they just sent you?
 
-A "yes" to the first two, or a "no" to the third, locks the payment. The guardian's screen then shows a plain-language reason and two actions: **I Spoke With Them — Safe to Approve** (with a second confirmation tap) and **Block & Report Scam (1930)**, which cancels the transfer and shows India's National Cybercrime Helpline details.
+A "yes" to the first two, or a "no" to the third, locks the payment for 900 seconds. Three calm answers settle the vault and leave it in `REALITY_CHECK`. The guardian's screen then shows a plain-language reason and two actions: **I Spoke With Them — Safe to Approve** (with a second confirmation tap) and **Block & Report Scam (1930)**, which cancels the transfer and shows India's National Cybercrime Helpline details.
 
 ## Status
 
@@ -84,7 +86,8 @@ A "yes" to the first two, or a "no" to the third, locks the payment. The guardia
 | In-memory store (`MemoryStore`) | Built and tested |
 | DynamoDB store (`DynamoDBStore`) and `NewFromEnv` factory | Built. Tested against an in-process fake only. Not yet run against real DynamoDB or DynamoDB Local. |
 | Table definition (`infra/dynamodb-table.json`) | Written, not deployed |
-| Cooling-off state machine (`vault`), guardian flow, HTTP API, SSE | Planned. Specs: [`cooling-off-vault`](.kiro/specs/cooling-off-vault) |
+| Cooling-off vault rules (`backend/internal/vault`) and redaction (`backend/internal/redact`) | Built and tested. Spec: [`cooling-off-vault`](.kiro/specs/cooling-off-vault) |
+| Guardian token, approve and veto, SSE hub (`guardian`) and the HTTP API (`httpapi`) | Planned. Same spec. |
 | React front end with the two-phone demo | Planned. Specs: [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) |
 | Lambda entry point, `infra/deploy.sh`, SAM template | Planned |
 
@@ -98,9 +101,9 @@ A "yes" to the first two, or a "no" to the third, locks the payment. The guardia
                            │
          ┌─────────────────┼──────────────────┐
          ▼                 ▼                  ▼
-   risk (built)      vault (planned)    guardian (planned)
-   signals → score   cooling-off state  co-approval and veto
-   → first state     machine
+   risk (built)       vault (built)     guardian (planned)
+   signals → score    cooling-off       co-approval and veto
+   → first state      state machine
          │                 │
          └───────┬─────────┘
                  ▼
@@ -112,7 +115,7 @@ A "yes" to the first two, or a "no" to the third, locks the payment. The guardia
      local and tests          table RukPayVaults
 ```
 
-The `risk` package imports `store` for the `VaultState` type. `store` never imports `risk`.
+The `risk` package imports `store` for the `VaultState` type. `store` never imports `risk`. `vault` uses `risk`, `store` and `redact`, and reaches the guardian only through two small interfaces, so it never imports `guardian`.
 
 ### Tech stack
 
@@ -132,8 +135,10 @@ The `risk` package imports `store` for the `VaultState` type. `store` never impo
 rukpay/
 ├── backend/                     Go module github.com/RahulKumar1119/rukpay/backend
 │   └── internal/
+│       ├── redact/              Removes OTP, PIN and password values from text
 │       ├── risk/                Risk scoring: Signals, Validate, Score, MapState, Evaluate
-│       └── store/               VaultStore, MemoryStore, DynamoDBStore, mask validation, factory
+│       ├── store/               VaultStore, MemoryStore, DynamoDBStore, mask validation, factory
+│       └── vault/               Cooling-off rules: transitions, lazy expiry, reality check, fast-forward
 ├── infra/
 │   └── dynamodb-table.json      CloudFormation template for the RukPayVaults table
 ├── .kiro/
@@ -146,7 +151,7 @@ rukpay/
 └── LICENSE
 ```
 
-The `frontend/` directory, `backend/cmd/` and the remaining `internal/` packages (`vault`, `guardian`) do not exist yet.
+The `frontend/` directory, `backend/cmd/` and the remaining `internal/` packages (`guardian`, `httpapi`) do not exist yet.
 
 ## Getting started
 
@@ -297,9 +302,9 @@ These endpoints are the contract for the HTTP layer. None of them exist yet.
 | Layer | What it covers |
 |---|---|
 | Unit tests | Demo presets, every tier boundary, threshold mapping, validation errors, state constants, mask formats, `NewFromEnv`, condition-expression strings, cancelled contexts |
-| Property tests (`rapid`) | 15 properties, 21 runs when the store properties are counted once per adapter, each at 1,000 inputs: scoring against an independent reference model, determinism, lock and pass guarantees, call monotonicity, and store behavior |
+| Property tests (`rapid`) | Every property runs at least 1,000 generated inputs. Risk: scoring against an independent reference model, determinism, lock and pass guarantees, call monotonicity. Store: round trip, duplicates, compare-and-swap, copies, expiry, unmasked identifiers, item layout, error text. Vault: the exact transition table, creation, reality-check outcomes, lazy expiry, reconfirmation, random operation sequences checked against a model, fast-forward, the read view, calm and redacted messages. |
 | Shared contract tests | The same store properties run once against `MemoryStore` and once against `DynamoDBStore` over a fake client, so both adapters face identical tests |
-| Concurrency test | 50 goroutines call `UpdateIf` on one id. Exactly one wins. Run with `-race`. |
+| Concurrency tests | 50 goroutines call `UpdateIf` on one id, and 50 to 64 goroutines approve or veto one locked vault. Exactly one wins each time. Run with `-race`. |
 | Import checks | The packages import no SQLite or logging package |
 
 The fake DynamoDB client (`fake_dynamodb_test.go`) keeps items in memory, evaluates the two condition expressions the store uses, and stops with a clear error on any request shape it does not know, so a changed expression cannot pass silently.
@@ -311,14 +316,14 @@ The project uses spec-driven development. Each feature has requirements, a desig
 | Spec | State |
 |---|---|
 | [`behavioral-risk-engine`](.kiro/specs/behavioral-risk-engine) | All tasks complete |
-| [`cooling-off-vault`](.kiro/specs/cooling-off-vault) | Planned |
+| [`cooling-off-vault`](.kiro/specs/cooling-off-vault) | Store changes and the `vault` package done. `guardian`, `httpapi` and the entrypoints planned. |
 | [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) | Planned |
 
 Always-on guidance lives in `.kiro/steering/`: the tech stack, the anti-panic UX and privacy rules, and the skills each part of the code must use. Two hooks in `.kiro/hooks/` run the Go tests when backend code changes and check front-end files for alarmist wording and unmasked data.
 
 ## Roadmap
 
-1. Cooling-off vault: the state machine, the 15-minute lock with its tamper-evident hash, and guardian approval tokens.
+1. Cooling-off vault, remaining parts: guardian approval tokens, approve and veto with evidence, and the live-update hub.
 2. HTTP API and Server-Sent Events, plus the Lambda entry point.
 3. React front end with the two-phone layout and the three one-click presets.
 4. One-command deploy: `infra/deploy.sh` and a SAM template for the table, the Lambda Function URL and its permissions.
