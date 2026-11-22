@@ -121,52 +121,52 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
 - [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement the `guardian` package
-  - [ ] 5.1 Implement `Signer` in `backend/internal/guardian/token.go`
+- [x] 5. Implement the `guardian` package
+  - [x] 5.1 Implement `Signer` in `backend/internal/guardian/token.go`
     - `NewSigner`, `Issue` (`<id>.<expiry>.<hex HMAC-SHA256(key, id+"."+expiry)>`), `Verify(token, pathID, now)`
     - `Verify` order: exactly three parts, recompute tag, `hmac.Equal`, `id == pathID`, `expiry > now`; every failure returns the single `ErrForbidden`
     - Never expose the key in errors
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.9_
 
-  - [ ] 5.2 Implement `BuildEvidence` in `backend/internal/guardian/evidence.go`
+  - [x] 5.2 Implement `BuildEvidence` in `backend/internal/guardian/evidence.go`
     - Lists vault id, masked identifiers, amount, Risk_Score, creation time, veto time, `National Cybercrime Helpline: 1930` and `Report online: cybercrime.gov.in`
     - Reads only `VaultRecord` fields and passes the result through `redact.Text`
     - _Requirements: 6.3, 6.4, 6.8_
 
-  - [ ] 5.3 Implement the SSE `Hub` in `backend/internal/guardian/hub.go`
+  - [x] 5.3 Implement the SSE `Hub` in `backend/internal/guardian/hub.go`
     - `Subscribe(id)` returns a buffered channel (capacity 8) and `cancel`; `Publish(vault.View)` marshals once without the Guardian_Token and sends non-blocking per subscriber; `cancel` removes and closes the channel and deletes empty map entries
     - Implements `vault.Observer`
     - _Requirements: 8.2, 8.3, 8.8, 8.9_
 
-  - [ ] 5.4 Implement guardian `Service` in `backend/internal/guardian/service.go`
+  - [x] 5.4 Implement guardian `Service` in `backend/internal/guardian/service.go`
     - `Action`, `Result`, `ErrInvalidAction`; `Act` verifies the token first (no store call on failure), then handles unknown action (400), APPROVE unconfirmed (`CONFIRMATION_REQUIRED`, no write), APPROVE confirmed (`vault.Approve`), VETO (`vault.Veto`)
     - Wire `BuildEvidence` into the vault service's evidence-builder field
     - _Requirements: 5.3, 5.4, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
 
-  - [ ]* 5.5 Write property tests for token round trip and tampering
+  - [x] 5.5 Write property tests for token round trip and tampering
     - File: `backend/internal/guardian/pbt_token_test.go`
     - **Property 12: Guardian token round trip**
     - **Property 13: Any tampering breaks the token** (single-byte change, other vault id, other key, wrong part count; identical failure result; no `UpdateIf` call on failure)
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 12.5, 12.6**
 
-  - [ ]* 5.6 Write property tests for approve, veto and refused actions
+  - [x] 5.6 Write property tests for approve, veto and refused actions
     - File: `backend/internal/guardian/pbt_actions_test.go`
     - **Property 14: Approval needs a confirmed second tap**
     - **Property 15: Veto cancels and produces masked evidence**
     - **Property 16: Guardian actions on non-locked or expired vaults are refused**
     - **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.8, 12.10**
 
-  - [ ]* 5.7 Write property test for the hub
+  - [x] 5.7 Write property test for the hub
     - File: `backend/internal/guardian/pbt_hub_test.go`
     - **Property 19: Hub never blocks and cleans up**
     - **Validates: Requirements 8.2, 8.3, 8.8**
 
-  - [ ]* 5.8 Write unit tests for evidence text
+  - [x] 5.8 Write unit tests for evidence text
     - File: `backend/internal/guardian/evidence_test.go`
     - Contains vault id, `1930`, `cybercrime.gov.in`; an OTP/PIN pattern in input becomes `[REDACTED]`
     - _Requirements: 6.4, 6.8_
 
-- [ ] 6. Checkpoint - Ensure all tests pass
+- [x] 6. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. Implement the `httpapi` package and entrypoints
@@ -195,25 +195,25 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
     - Add `github.com/aws/aws-lambda-go` and `github.com/awslabs/aws-lambda-go-api-proxy` to `go.mod`
     - _Requirements: 5.8, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-  - [ ]* 7.5 Write property tests for request validation and reconfirm payload shape
+  - [ ] 7.5 Write property tests for request validation and reconfirm payload shape
     - File: `backend/internal/httpapi/pbt_requests_test.go`
     - **Property 2: Invalid input never creates a vault** (invalid Signals or unmasked identifiers give 400 and no store record)
     - **Property 11: Reconfirm payload shape**
     - **Validates: Requirements 1.6, 1.7, 3.7, 4.5**
 
-  - [ ]* 7.6 Write example and integration tests for the router
+  - [ ] 7.6 Write example and integration tests for the router
     - File: `backend/internal/httpapi/httpapi_test.go`
     - Route registration for all six patterns; end-to-end flows (locked → approve with second tap; locked → veto with evidence; locked → fast-forward → EXPIRED → reconfirm through `reality-check`); 404 on missing id for GET and stream, 400 on missing `vault_id`; CORS (allowed, other origin, preflight, default origin); 413 over 64 KiB; 400 on invalid JSON; 403 body identical for every token failure; error bodies carry code and message only
     - SSE: first event is current View, headers, `: keep-alive` with shortened interval, disconnect removes subscription, Lambda flag closes the stream at the injected limit
     - Logging: output after a request with a distinctive amount and masked UPI holds only method, route, status and vault id
     - _Requirements: 6.1, 6.3, 7.4, 8.1, 8.3, 8.4, 8.5, 8.6, 8.7, 10.1, 10.7, 10.8, 10.9, 10.10, 10.11, 11.1, 11.2, 11.6_
 
-  - [ ]* 7.7 Write unit tests for startup config
+  - [ ] 7.7 Write unit tests for startup config
     - File: `backend/internal/httpapi/config_test.go`
     - Empty `HMAC_SECRET_KEY` returns an error without the key in the text; Demo_Mode with no key generates one; defaults for origin, port and driver; `OnLambda` detection
     - _Requirements: 5.8, 5.9, 10.2, 10.4, 10.9_
 
-  - [ ]* 7.8 Write smoke tests for forbidden imports and constructs
+  - [ ] 7.8 Write smoke tests for forbidden imports and constructs
     - File: `backend/internal/vault/imports_test.go`
     - Parse imports with `go/parser` for `vault`, `guardian` and `httpapi`: no SQLite package; `vault` has no `log` import and no `go` statement or `time.AfterFunc`
     - _Requirements: 4.3, 11.7_
