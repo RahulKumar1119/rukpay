@@ -21,7 +21,9 @@ func TestMemoryStoreUpdateIfConcurrentCallersOneWinner(t *testing.T) {
 
 	for round := 0; round < rounds; round++ {
 		id := "vault-" + strconv.Itoa(round)
-		s := NewMemoryStore()
+		// A fake clock keeps the record alive however far the wall clock moves.
+		// examplesRecord expires a day after contractEpoch.
+		s := NewMemoryStoreWithClock(newContractClock(contractEpoch()).Now)
 		if err := s.Create(ctx, examplesRecord(id, StateLocked15M)); err != nil {
 			t.Fatalf("round %d: Create = %v, want nil", round, err)
 		}
