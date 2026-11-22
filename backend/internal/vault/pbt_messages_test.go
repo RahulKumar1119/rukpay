@@ -230,9 +230,10 @@ func TestRedactReplacesSensitiveFieldsAndValues(t *testing.T) {
 		got := redact.Text(in)
 
 		// The pattern ends at the first space after the value, so the prefix and
-		// the suffix survive. The prefix may itself end in a word that matches,
-		// so compare against the replacement of the field alone.
-		if strings.Contains(got, value) && !strings.Contains(prefix+suffix, value) {
+		// the suffix survive. Look for the value outside the replacement text,
+		// which can itself spell a short value ("CTE" is inside "[REDACTED]").
+		outside := strings.ReplaceAll(got, "[REDACTED]", "")
+		if strings.Contains(outside, value) && !strings.Contains(prefix+suffix, value) {
 			rt.Fatalf("Text(%q) = %q still holds the value %q", in, got, value)
 		}
 		if !strings.Contains(got, "[REDACTED]") {

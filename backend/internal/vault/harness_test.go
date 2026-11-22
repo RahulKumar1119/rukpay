@@ -9,6 +9,7 @@ import (
 
 	"pgregory.net/rapid"
 
+	"github.com/RahulKumar1119/rukpay/backend/internal/redact"
 	"github.com/RahulKumar1119/rukpay/backend/internal/risk"
 	"github.com/RahulKumar1119/rukpay/backend/internal/store"
 )
@@ -319,8 +320,12 @@ func wantLock(a Answers) bool {
 // identifiersGen draws a request body with optional masked identifiers. The
 // signals are left empty, because vaultInWith chooses them.
 func identifiersGen() *rapid.Generator[EvaluateRequest] {
+	// A masked value is also text that redact.Text must leave alone. A random
+	// UPI handle can spell a word such as "otp", which redact.Text rightly
+	// rewrites, so those values are left out of the generator.
 	optional := func(expr string) *rapid.Generator[string] {
-		return rapid.OneOf(rapid.Just(""), rapid.StringMatching(expr))
+		plain := rapid.StringMatching(expr).Filter(func(s string) bool { return redact.Text(s) == s })
+		return rapid.OneOf(rapid.Just(""), plain)
 	}
 	return rapid.Custom(func(t *rapid.T) EvaluateRequest {
 		return EvaluateRequest{
