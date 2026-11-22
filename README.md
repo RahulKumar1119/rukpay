@@ -5,7 +5,7 @@
 
 Anti-panic behavioral payment firewall combining scam-stress detection, 15-minute cooling-off locks, and family co-approval. Built for Kiroween 2026.
 
-> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB) and the cooling-off vault rules. The guardian flow, HTTP API and the React front end are planned and not built yet. See [Status](#status).
+> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB), the cooling-off vault rules and the guardian flow. The HTTP API and the React front end are planned and not built yet. See [Status](#status).
 
 ## The problem
 
@@ -67,7 +67,7 @@ Three more states complete the vault life cycle: `GUARDIAN_APPROVED`, `VETOED` a
 
 ### 5. The reality check and the guardian
 
-The reality check is built in the `vault` package. The guardian's screen and the approve and block actions are planned.
+The reality check is built in the `vault` package, and the approve and block actions in the `guardian` package. The guardian's screen is planned.
 
 The three reality-check questions are:
 
@@ -87,7 +87,8 @@ A "yes" to the first two, or a "no" to the third, locks the payment for 900 seco
 | DynamoDB store (`DynamoDBStore`) and `NewFromEnv` factory | Built. Tested against an in-process fake only. Not yet run against real DynamoDB or DynamoDB Local. |
 | Table definition (`infra/dynamodb-table.json`) | Written, not deployed |
 | Cooling-off vault rules (`backend/internal/vault`) and redaction (`backend/internal/redact`) | Built and tested. Spec: [`cooling-off-vault`](.kiro/specs/cooling-off-vault) |
-| Guardian token, approve and veto, SSE hub (`guardian`) and the HTTP API (`httpapi`) | Planned. Same spec. |
+| Guardian token, approve and veto, evidence summary and event hub (`backend/internal/guardian`) | Built and tested. Same spec. |
+| HTTP API (`httpapi`), the server and Lambda entry points | Planned. Same spec. |
 | React front end with the two-phone demo | Planned. Specs: [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) |
 | Lambda entry point, `infra/deploy.sh`, SAM template | Planned |
 
@@ -101,7 +102,7 @@ A "yes" to the first two, or a "no" to the third, locks the payment for 900 seco
                            │
          ┌─────────────────┼──────────────────┐
          ▼                 ▼                  ▼
-   risk (built)       vault (built)     guardian (planned)
+   risk (built)       vault (built)     guardian (built)
    signals → score    cooling-off       co-approval and veto
    → first state      state machine
          │                 │
@@ -115,7 +116,7 @@ A "yes" to the first two, or a "no" to the third, locks the payment for 900 seco
      local and tests          table RukPayVaults
 ```
 
-The `risk` package imports `store` for the `VaultState` type. `store` never imports `risk`. `vault` uses `risk`, `store` and `redact`, and reaches the guardian only through two small interfaces, so it never imports `guardian`.
+The `risk` package imports `store` for the `VaultState` type. `store` never imports `risk`. `vault` uses `risk`, `store` and `redact`, and reaches the guardian only through two small interfaces, so it never imports `guardian`. `guardian` imports `vault`, `store` and `redact`.
 
 ### Tech stack
 
@@ -135,6 +136,7 @@ The `risk` package imports `store` for the `VaultState` type. `store` never impo
 rukpay/
 ├── backend/                     Go module github.com/RahulKumar1119/rukpay/backend
 │   └── internal/
+│       ├── guardian/            Signed guardian token, approve and veto, evidence summary, event hub
 │       ├── redact/              Removes OTP, PIN and password values from text
 │       ├── risk/                Risk scoring: Signals, Validate, Score, MapState, Evaluate
 │       ├── store/               VaultStore, MemoryStore, DynamoDBStore, mask validation, factory
@@ -151,7 +153,7 @@ rukpay/
 └── LICENSE
 ```
 
-The `frontend/` directory, `backend/cmd/` and the remaining `internal/` packages (`guardian`, `httpapi`) do not exist yet.
+The `frontend/` directory, `backend/cmd/` and the `internal/httpapi` package do not exist yet.
 
 ## Getting started
 
@@ -302,9 +304,9 @@ These endpoints are the contract for the HTTP layer. None of them exist yet.
 | Layer | What it covers |
 |---|---|
 | Unit tests | Demo presets, every tier boundary, threshold mapping, validation errors, state constants, mask formats, `NewFromEnv`, condition-expression strings, cancelled contexts |
-| Property tests (`rapid`) | Every property runs at least 1,000 generated inputs. Risk: scoring against an independent reference model, determinism, lock and pass guarantees, call monotonicity. Store: round trip, duplicates, compare-and-swap, copies, expiry, unmasked identifiers, item layout, error text. Vault: the exact transition table, creation, reality-check outcomes, lazy expiry, reconfirmation, random operation sequences checked against a model, fast-forward, the read view, calm and redacted messages. |
+| Property tests (`rapid`) | Every property runs at least 1,000 generated inputs. Risk: scoring against an independent reference model, determinism, lock and pass guarantees, call monotonicity. Store: round trip, duplicates, compare-and-swap, copies, expiry, unmasked identifiers, item layout, error text. Vault: the exact transition table, creation, reality-check outcomes, lazy expiry, reconfirmation, random operation sequences checked against a model, fast-forward, the read view, calm and redacted messages. Guardian: the token round trip, any single changed byte breaking a token, confirmed approval, veto evidence, refused actions on non-locked or expired vaults, and the event hub never blocking. |
 | Shared contract tests | The same store properties run once against `MemoryStore` and once against `DynamoDBStore` over a fake client, so both adapters face identical tests |
-| Concurrency tests | 50 goroutines call `UpdateIf` on one id, and 50 to 64 goroutines approve or veto one locked vault. Exactly one wins each time. Run with `-race`. |
+| Concurrency tests | 50 goroutines call `UpdateIf` on one id, and 50 to 64 goroutines approve or veto one locked vault, and many goroutines publish to and cancel hub subscriptions. Exactly one wins each time. Run with `-race`. |
 | Import checks | The packages import no SQLite or logging package |
 
 The fake DynamoDB client (`fake_dynamodb_test.go`) keeps items in memory, evaluates the two condition expressions the store uses, and stops with a clear error on any request shape it does not know, so a changed expression cannot pass silently.
@@ -316,18 +318,17 @@ The project uses spec-driven development. Each feature has requirements, a desig
 | Spec | State |
 |---|---|
 | [`behavioral-risk-engine`](.kiro/specs/behavioral-risk-engine) | All tasks complete |
-| [`cooling-off-vault`](.kiro/specs/cooling-off-vault) | Store changes and the `vault` package done. `guardian`, `httpapi` and the entrypoints planned. |
+| [`cooling-off-vault`](.kiro/specs/cooling-off-vault) | Store changes, the `vault` package and the `guardian` package done. `httpapi` and the entrypoints planned. |
 | [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) | Planned |
 
 Always-on guidance lives in `.kiro/steering/`: the tech stack, the anti-panic UX and privacy rules, and the skills each part of the code must use. Two hooks in `.kiro/hooks/` run the Go tests when backend code changes and check front-end files for alarmist wording and unmasked data.
 
 ## Roadmap
 
-1. Cooling-off vault, remaining parts: guardian approval tokens, approve and veto with evidence, and the live-update hub.
-2. HTTP API and Server-Sent Events, plus the Lambda entry point.
-3. React front end with the two-phone layout and the three one-click presets.
-4. One-command deploy: `infra/deploy.sh` and a SAM template for the table, the Lambda Function URL and its permissions.
-5. Run the DynamoDB adapter against DynamoDB Local and real DynamoDB.
+1. HTTP API, with Server-Sent Events, CORS and request limits, plus the server and Lambda entry points.
+2. React front end with the two-phone layout and the three one-click presets.
+3. One-command deploy: `infra/deploy.sh` and a SAM template for the table, the Lambda Function URL and its permissions.
+4. Run the DynamoDB adapter against DynamoDB Local and real DynamoDB.
 
 ## License
 
