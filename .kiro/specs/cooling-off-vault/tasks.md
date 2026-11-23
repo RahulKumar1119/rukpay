@@ -169,56 +169,56 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
 - [x] 6. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Implement the `httpapi` package and entrypoints
-  - [ ] 7.1 Implement config in `backend/internal/httpapi/config.go`
+- [x] 7. Implement the `httpapi` package and entrypoints
+  - [x] 7.1 Implement config in `backend/internal/httpapi/config.go`
     - `Config`, `LoadConfig(getenv)`: defaults `ALLOWED_ORIGIN=http://localhost:5173`, `PORT=8080`, `STORAGE_DRIVER=memory`; `OnLambda` from `AWS_LAMBDA_FUNCTION_NAME`; `DemoMode` from `DEMO_MODE=="true"`
     - Error when `HMAC_SECRET_KEY` is empty and not Demo_Mode; in Demo_Mode generate 32 random bytes; error text never contains the key
     - _Requirements: 5.8, 5.9, 10.2, 10.4, 10.9_
 
-  - [ ] 7.2 Implement errors and middleware in `backend/internal/httpapi/errors.go` and `backend/internal/httpapi/middleware.go`
+  - [x] 7.2 Implement errors and middleware in `backend/internal/httpapi/errors.go` and `backend/internal/httpapi/middleware.go`
     - One error body shape `{error:{code,message,field?}}` with the status table from the design (400 `invalid_field`/`invalid_identifier`/`invalid_request`, 403 identical `forbidden`, 404, 409 with current View, 413, 500 fixed message)
     - Middleware chain `logging` → `cors` → `bodyLimit` (64 KiB, 413); logging writes method, route pattern, status and vault id only; CORS echoes the origin only when it equals `AllowedOrigin` and answers `OPTIONS`
     - Calm plain-language messages; no store error text, stack text or submitted values
     - _Requirements: 10.7, 10.8, 10.9, 10.10, 10.11, 11.1, 11.2, 11.6, 5.4, 5.7_
 
-  - [ ] 7.3 Implement the router and `Build` in `backend/internal/httpapi/router.go`
+  - [x] 7.3 Implement the router and `Build` in `backend/internal/httpapi/router.go`
     - Register the six method/path routes through the in-repo dispatcher (`route.go`), not Go 1.22 `ServeMux` patterns
     - `evaluate` maps validation errors to 400 with the field name; `realityCheck` decodes `{answers?, reconfirm?}` with pointer fields, accepts exactly one (both, neither or `reconfirm:false` is 400) and dispatches to `RealityCheck` or `Reconfirm`; `guardianAction`, `getVault`, `fastForward` (404 when demo is off, before reading the vault)
     - `stream`: 400 missing `vault_id`, 404 unknown id, event-stream headers with `X-Accel-Buffering: no`, current View first, hub subscription, `: keep-alive` every 15 s (interval injectable), 25 s limit when `OnLambda`
     - `Build(ctx, cfg)` wires `store.NewFromEnv`, `Signer`, `Hub`, `vault.Service`, `guardian.Service`
     - _Requirements: 2.6, 3.1, 3.7, 3.8, 4.5, 4.6, 6.5, 6.6, 7.1, 7.4, 8.1, 8.2, 8.4, 8.5, 8.6, 8.7, 9.2, 10.1, 10.5, 1.6, 1.7_
 
-  - [ ] 7.4 Implement the entrypoints and dependencies
+  - [x] 7.4 Implement the entrypoints and dependencies
     - Files: `backend/cmd/server/main.go`, `backend/cmd/lambda/main.go`, `backend/go.mod`
     - Server: `LoadConfig` then `Build`; print the error and exit non-zero on failure; run `lambda.Start(httpadapter.NewV2(h).ProxyWithContext)` when `OnLambda`, otherwise `http.ListenAndServe(":"+Port, h)`
     - Lambda entrypoint builds the same router and calls `lambda.Start` only (built with `-tags lambda.norpc`)
     - Add `github.com/aws/aws-lambda-go` and `github.com/awslabs/aws-lambda-go-api-proxy` to `go.mod`
     - _Requirements: 5.8, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-  - [ ] 7.5 Write property tests for request validation and reconfirm payload shape
+  - [x] 7.5 Write property tests for request validation and reconfirm payload shape
     - File: `backend/internal/httpapi/pbt_requests_test.go`
     - **Property 2: Invalid input never creates a vault** (invalid Signals or unmasked identifiers give 400 and no store record)
     - **Property 11: Reconfirm payload shape**
     - **Validates: Requirements 1.6, 1.7, 3.7, 4.5**
 
-  - [ ] 7.6 Write example and integration tests for the router
+  - [x] 7.6 Write example and integration tests for the router
     - File: `backend/internal/httpapi/httpapi_test.go`
     - Route registration for all six patterns; end-to-end flows (locked → approve with second tap; locked → veto with evidence; locked → fast-forward → EXPIRED → reconfirm through `reality-check`); 404 on missing id for GET and stream, 400 on missing `vault_id`; CORS (allowed, other origin, preflight, default origin); 413 over 64 KiB; 400 on invalid JSON; 403 body identical for every token failure; error bodies carry code and message only
     - SSE: first event is current View, headers, `: keep-alive` with shortened interval, disconnect removes subscription, Lambda flag closes the stream at the injected limit
     - Logging: output after a request with a distinctive amount and masked UPI holds only method, route, status and vault id
     - _Requirements: 6.1, 6.3, 7.4, 8.1, 8.3, 8.4, 8.5, 8.6, 8.7, 10.1, 10.7, 10.8, 10.9, 10.10, 10.11, 11.1, 11.2, 11.6_
 
-  - [ ] 7.7 Write unit tests for startup config
+  - [x] 7.7 Write unit tests for startup config
     - File: `backend/internal/httpapi/config_test.go`
     - Empty `HMAC_SECRET_KEY` returns an error without the key in the text; Demo_Mode with no key generates one; defaults for origin, port and driver; `OnLambda` detection
     - _Requirements: 5.8, 5.9, 10.2, 10.4, 10.9_
 
-  - [ ] 7.8 Write smoke tests for forbidden imports and constructs
+  - [x] 7.8 Write smoke tests for forbidden imports and constructs
     - File: `backend/internal/vault/imports_test.go`
     - Parse imports with `go/parser` for `vault`, `guardian` and `httpapi`: no SQLite package; `vault` has no `log` import and no `go` statement or `time.AfterFunc`
     - _Requirements: 4.3, 11.7_
 
-- [ ] 8. Final checkpoint - Ensure all tests pass
+- [x] 8. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
