@@ -1,11 +1,12 @@
 # RukPay (रुक-पे): Pause Before You Pay
 
 [![CodeQL](https://github.com/RahulKumar1119/rukpay/actions/workflows/codeql.yml/badge.svg)](https://github.com/RahulKumar1119/rukpay/actions/workflows/codeql.yml)
+[![CI](https://github.com/RahulKumar1119/rukpay/actions/workflows/ci.yml/badge.svg)](https://github.com/RahulKumar1119/rukpay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Anti-panic behavioral payment firewall combining scam-stress detection, 15-minute cooling-off locks, and family co-approval. Built for Kiroween 2026.
 
-> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB), the cooling-off vault rules, the guardian flow and the HTTP API, with a local server and a Lambda entry point. The React front end is built: the two-phone demo with three one-click presets. The one-command deploy is planned and not built yet. See [Status](#status).
+> **Project status:** the app works end to end on your machine. The backend has the behavioral risk engine, the vault store (in-memory and DynamoDB), the cooling-off vault rules, the guardian flow and the HTTP API, with a local server and a Lambda entry point. The React front end shows the payer's phone and the family guardian's phone side by side, with three one-click presets. Nothing is deployed yet, and the one-command deploy (`infra/deploy.sh` and a SAM template) is not written. See [Status](#status).
 
 ## The problem
 
@@ -53,11 +54,13 @@ Three more states complete the vault life cycle: `GUARDIAN_APPROVED`, `VETOED` a
 
 ### 3. Demo presets
 
-| Preset | Signals | Score | State |
+The front end has one button for each. There is no login.
+
+| Button | Signals | Score | State |
 |---|---|---|---|
 | Safe daily payment | ₹450 to a known contact, daytime, no call | 0 | `INSTANT_PASS` |
-| Unusual transfer | ₹18,000 to a new contact, daytime, no call | 45 | `REALITY_CHECK` |
-| "Digital arrest" panic transfer | ₹85,000 to a brand-new account at 11:45 PM during an unknown call | 90 | `LOCKED_15M` |
+| Medium-risk unusual transfer | ₹18,000 to a new contact, daytime, no call | 45 | `REALITY_CHECK` |
+| High-risk panic transfer | ₹85,000 to a brand-new account at 11:45 PM during an unknown call | 90 | `LOCKED_15M` |
 
 ### 4. Guarantees the tests enforce
 
@@ -67,7 +70,7 @@ Three more states complete the vault life cycle: `GUARDIAN_APPROVED`, `VETOED` a
 
 ### 5. The reality check and the guardian
 
-The reality check is built in the `vault` package, and the approve and block actions in the `guardian` package. The guardian's screen is planned.
+The reality check is built in the `vault` package, and the approve and block actions in the `guardian` package. The front end shows them as a dialog on the payer's phone and an alert on the guardian's phone.
 
 The three reality-check questions are:
 
@@ -75,7 +78,16 @@ The three reality-check questions are:
 2. Did the caller ask you not to tell your family or bank staff?
 3. Have you checked this person or bill without using a phone number they just sent you?
 
-A "yes" to the first two, or a "no" to the third, locks the payment for 900 seconds. Three calm answers settle the vault and leave it in `REALITY_CHECK`. The guardian's screen then shows a plain-language reason and two actions: **I Spoke With Them — Safe to Approve** (with a second confirmation tap) and **Block & Report Scam (1930)**, which cancels the transfer and shows India's National Cybercrime Helpline details.
+A "yes" to the first two, or a "no" to the third, locks the payment for 900 seconds. Three calm answers settle the vault and leave it in `REALITY_CHECK`. When a payment is locked, the guardian's phone shows a plain-language reason and two actions: **I Spoke With Them — Safe to Approve** (with a second confirmation tap) and **Block & Report Scam (1930)**, which cancels the transfer and shows India's National Cybercrime Helpline details.
+
+### 6. The two phones
+
+The front end puts the payer's phone on the left and the guardian's phone on the right, so one screen shows the whole flow. Below 1024 pixels the phones stack.
+
+- **Live updates.** Both phones follow the same vault through the event stream. If the stream fails, they poll every two seconds, and they stop when the vault can no longer change.
+- **Calm wording.** All text is in one file, `frontend/src/lib/copy.ts`, and a test checks it against a list of banned jargon and alarming phrases. The lock is always called a protective pause.
+- **Nothing is kept.** The front end writes nothing to storage, cookies, the address bar or the console. It holds only masked identifiers, and it holds the guardian token in memory only.
+- **Readable and easy to tap.** Every control is at least 48 by 48 pixels with 12 pixels between neighbours, and text is at least 16 pixels. Text reaches a 7:1 contrast ratio, with one exception: white on the red Block & Report buttons is 4.8:1, so those labels are large and bold. The steering colors `#92400E` on amber and white on teal `#0F766E` fall short of 7:1, so the text uses `#78350F` and a darker teal panel instead. The ratios are written beside the colors in `frontend/tailwind.config.ts`.
 
 ## Status
 
@@ -223,7 +235,9 @@ npm run dev                   # http://localhost:5173
 
 Start the backend first, in demo mode, so the "Demo: skip the wait" button works (see [Run the server](#run-the-server)). Then open the page and press a preset. There is no login.
 
-The dev server uses port 5173 and fails if the port is taken, because the backend allows that origin by default. Other scripts: `npm run typecheck`, `npm run build` and `npm test`. Each property test runs 1,000 generated inputs.
+The dev server uses port 5173 and fails if the port is taken, because the backend allows that origin by default. Other scripts: `npm run typecheck`, `npm run build` and `npm test`.
+
+`npm run preview` serves the built bundle on port 4173. The backend refuses that origin unless you start it with `ALLOWED_ORIGIN=http://localhost:4173`.
 
 ### Use the risk engine
 
@@ -283,6 +297,12 @@ The HTTP service adds these. When `STORAGE_DRIVER` is unset, the service uses `m
 | `ALLOWED_ORIGIN` | No | `http://localhost:5173` | The one browser origin that CORS allows. |
 | `PORT` | No | `8080` | Port of the local server. |
 | `AWS_LAMBDA_FUNCTION_NAME` | Set by AWS | none | When set, the server runs as a Lambda function and streams close after 25 seconds. |
+
+The front end reads one variable, at build time.
+
+| Variable | Required | Default | Meaning |
+|---|---|---|---|
+| `VITE_API_BASE_URL` | No | `http://localhost:8080` | The backend's address. An empty value uses the default, and a trailing slash is removed. Set it in `frontend/.env`. For a deployed backend it must be the Function URL, and the backend's `ALLOWED_ORIGIN` must be the front end's address. |
 
 ## Data model
 
@@ -389,6 +409,21 @@ The router is a small dispatcher in `httpapi/route.go`, because Go 1.21's `Serve
 | HTTP tests | The six routes, CORS, the 64 KiB limit, bad JSON, identical 403 bodies, error bodies free of store text, the event stream (first event, keep-alive, change events, disconnect, the Lambda limit), log lines, and the startup configuration |
 | Import checks | No package imports SQLite. `store`, `risk` and `vault` import no logger. `vault` starts no goroutine and no timer. |
 
+### Front end
+
+Run them with `npm test` in `frontend/`. Everything uses a stubbed `fetch` and a stubbed `EventSource`, so there is no network.
+
+| Layer | What it covers |
+|---|---|
+| Unit tests (Vitest) | The privacy masker, the API client (base URL, JSON, timeout, abort, error mapping), the presets, the countdown hook with fake timers, the event stream and its polling fallback |
+| Property tests (`fast-check`) | The masking formats, no long digit run surviving, hashing, deep and idempotent redaction, no secret in an outbound body, errors that carry the server's fields and no secrets, one screen for every view, countdown arithmetic, the reducer (token kept, foreign views dropped, newest arrival wins, no leftovers after a new preset), terminal states stopping the sync, and calm copy. Each runs 1,000 inputs, except the two that render the dialog, which run 100. |
+| Component tests (Testing Library) | The whole App: each preset, the reality-check dialog (order, Back, focus trap), the locked state, guardian approval (two taps, 403, 409), the veto and the evidence card, and the unreachable notice |
+| Smoke checks | The source holds no storage, cookie, console or pure red. A locked-to-approved flow writes nothing. Every control is at least 48 pixels with 12 pixel gaps, text reaches 7:1, and the dependencies are React and `lucide-react` only. |
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request to `main`. The backend job runs `gofmt`, `go vet` and `go test -race`. The front end job runs `npm ci`, the type check, the build and `npm test`. CodeQL scans both languages.
+
 The fake DynamoDB client (`fake_dynamodb_test.go`) keeps items in memory, evaluates the two condition expressions the store uses, and stops with a clear error on any request shape it does not know, so a changed expression cannot pass silently.
 
 ## Development with Kiro
@@ -399,7 +434,7 @@ The project uses spec-driven development. Each feature has requirements, a desig
 |---|---|
 | [`behavioral-risk-engine`](.kiro/specs/behavioral-risk-engine) | All tasks complete |
 | [`cooling-off-vault`](.kiro/specs/cooling-off-vault) | All tasks complete: the store changes, `vault`, `guardian`, `httpapi` and the two entry points. |
-| [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) | Planned |
+| [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) | All tasks complete: the masker, copy, API client, presets, screens, countdown, reducer, live sync, the hook, the components, the App and the smoke checks. |
 
 Always-on guidance lives in `.kiro/steering/`: the tech stack, the anti-panic UX and privacy rules, and the skills each part of the code must use. Two hooks in `.kiro/hooks/` run the Go tests when backend code changes and check front-end files for alarmist wording and unmasked data.
 
