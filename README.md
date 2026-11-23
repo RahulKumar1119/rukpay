@@ -5,7 +5,7 @@
 
 Anti-panic behavioral payment firewall combining scam-stress detection, 15-minute cooling-off locks, and family co-approval. Built for Kiroween 2026.
 
-> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB), the cooling-off vault rules, the guardian flow and the HTTP API, with a local server and a Lambda entry point. The React front end and the one-command deploy are planned and not built yet. See [Status](#status).
+> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB), the cooling-off vault rules, the guardian flow and the HTTP API, with a local server and a Lambda entry point. The React front end is scaffolded and its screens are not built yet. The one-command deploy is planned and not built yet. See [Status](#status).
 
 ## The problem
 
@@ -89,7 +89,7 @@ A "yes" to the first two, or a "no" to the third, locks the payment for 900 seco
 | Cooling-off vault rules (`backend/internal/vault`) and redaction (`backend/internal/redact`) | Built and tested. Spec: [`cooling-off-vault`](.kiro/specs/cooling-off-vault) |
 | Guardian token, approve and veto, evidence summary and event hub (`backend/internal/guardian`) | Built and tested. Same spec. |
 | HTTP API (`backend/internal/httpapi`), the local server (`cmd/server`) and the Lambda entry point (`cmd/lambda`) | Built and tested. Same spec. The Lambda function has not been deployed. |
-| React front end with the two-phone demo | Planned. Specs: [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) |
+| React front end with the two-phone demo | Project scaffold only: Vite, Tailwind, Vitest and test stubs. No screens yet. Spec: [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) |
 | `infra/deploy.sh` and the SAM template | Planned |
 
 ## Architecture
@@ -128,7 +128,7 @@ The `risk` package imports `store` for the `VaultState` type. `store` never impo
 | Hosting | AWS Lambda (ARM64, `provided.al2023`) with a Function URL, in `ap-south-1`. Not deployed yet. |
 | Real-time updates | Server-Sent Events, with short polling as a fallback |
 | Property-based tests | [`pgregory.net/rapid`](https://pkg.go.dev/pgregory.net/rapid) |
-| Front end (planned) | React 18 and TypeScript (strict), Vite, Tailwind CSS |
+| Front end | React 18 and TypeScript (strict), Vite, Tailwind CSS v3, `lucide-react`. Tests: Vitest, Testing Library, fast-check. |
 
 ## Repository layout
 
@@ -145,6 +145,11 @@ rukpay/
 │       ├── risk/                Risk scoring: Signals, Validate, Score, MapState, Evaluate
 │       ├── store/               VaultStore, MemoryStore, DynamoDBStore, mask validation, factory
 │       └── vault/               Cooling-off rules: transitions, lazy expiry, reality check, fast-forward
+├── frontend/                    React and Vite app (scaffold: config, styles, test stubs)
+│   └── src/
+│       ├── components/          Phone panels and cards (not written yet)
+│       ├── lib/                 API client, privacy masker, copy (not written yet)
+│       └── test/                Vitest setup and the fetch and EventSource stubs
 ├── infra/
 │   └── dynamodb-table.json      CloudFormation template for the RukPayVaults table
 ├── .kiro/
@@ -156,8 +161,6 @@ rukpay/
 ├── AGENTS.md                    Rules for AI coding agents working in this repo
 └── LICENSE
 ```
-
-The `frontend/` directory does not exist yet.
 
 ## Getting started
 
@@ -204,6 +207,19 @@ The answer holds the vault id, the state `LOCKED_15M` and a `guardian_token`. To
 ```bash
 GOOS=linux GOARCH=arm64 go build -tags lambda.norpc -o bootstrap ./cmd/lambda
 ```
+
+### Run the front end
+
+You need Node 22.12 or later.
+
+```bash
+cd frontend
+cp .env.example .env          # VITE_API_BASE_URL=http://localhost:8080
+npm install
+npm run dev                   # http://localhost:5173
+```
+
+The dev server uses port 5173 and fails if the port is taken, because the backend allows that origin by default. Other scripts: `npm run typecheck`, `npm run build` and `npm test`. `npm test` reports an error until the first test file exists.
 
 ### Use the risk engine
 
@@ -385,7 +401,7 @@ Always-on guidance lives in `.kiro/steering/`: the tech stack, the anti-panic UX
 
 ## Roadmap
 
-1. React front end with the two-phone layout and the three one-click presets.
+1. React front end with the two-phone layout and the three one-click presets. The project scaffold is done. The screens are next.
 2. One-command deploy: `infra/deploy.sh` and a SAM template for the table, the Lambda Function URL and its permissions.
 3. Run the DynamoDB adapter against DynamoDB Local and real DynamoDB.
 
