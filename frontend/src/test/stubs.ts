@@ -124,7 +124,14 @@ export interface RecordedCall {
 type QueuedResponse =
   | { kind: "text"; status: number; text: string }
   | { kind: "reject"; error: unknown }
-  | { kind: "hang" };
+  | { kind: "hang" }
+  | { kind: "deferred"; promise: Promise<Response> };
+
+/** A response the test answers later, while the request is still in flight. */
+export interface DeferredResponse {
+  respond(status: number, body?: unknown): void;
+  fail(error?: unknown): void;
+}
 
 export interface FetchStub {
   /** Every call so far, in order. */
@@ -139,6 +146,8 @@ export interface FetchStub {
   reject(error?: unknown): FetchStub;
   /** Queue a request that never answers and rejects only when it is aborted. */
   hang(): FetchStub;
+  /** Queue a request the test answers later with `respond` or `fail`. It rejects when aborted. */
+  defer(): DeferredResponse;
   readonly fetch: typeof fetch;
 }
 
@@ -186,6 +195,25 @@ export function createFetchStub(): FetchStub {
       queue.push({ kind: "hang" });
       return stub;
     },
+    defer() {
+      let settle!: (value: Response) => void;
+      let breakIt!: (error: unknown) => void;
+      const promise = new Promise<Response>((resolve, reject) => {
+        settle = resolve;
+        breakIt = reject;
+      });
+      queue.push({ kind: "deferred", promise });
+      return {
+        respond: (status, body) =>
+          settle(
+            new Response(body === undefined ? null : JSON.stringify(body), {
+              status,
+              headers: { "Content-Type": "application/json" },
+            }),
+          ),
+        fail: (error) => breakIt(error ?? new TypeError("Failed to fetch")),
+      };
+    },
     fetch: (input, init) => {
       const method = (init?.method ?? "GET").toUpperCase();
       const url = requestUrl(input);
@@ -210,6 +238,11 @@ export function createFetchStub(): FetchStub {
           return Promise.reject(next.error);
         case "hang":
           return new Promise<Response>((_resolve, reject) => {
+            signal?.addEventListener("abort", () => reject(abortError(signal)), { once: true });
+          });
+        case "deferred":
+          return new Promise<Response>((resolve, reject) => {
+            next.promise.then(resolve, reject);
             signal?.addEventListener("abort", () => reject(abortError(signal)), { once: true });
           });
         case "text":

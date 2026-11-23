@@ -19,5 +19,8 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,
+    // Component tests render whole screens and some wait for a real second. A
+    // shared CI machine can need more than Vitest's default of 5 seconds.
+    testTimeout: 20_000,
   },
 });
