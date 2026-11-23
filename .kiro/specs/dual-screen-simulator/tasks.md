@@ -156,52 +156,52 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
 - [x] 6. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Implement state, real-time sync and the simulator hook
-  - [ ] 7.1 Implement `frontend/src/lib/simulatorReducer.ts`
+- [x] 7. Implement state, real-time sync and the simulator hook
+  - [x] 7.1 Implement `frontend/src/lib/simulatorReducer.ts`
     - `SimState`, `SimAction`, `Notice`, `initialState`, `reduce`
     - `VIEW` rules: discard a foreign `vault_id`; drop a poll result whose `startedAtSeq` is older than `lastActionSeq`; otherwise the latest arrival replaces the earlier view; keep the previous Guardian_Token when a LOCKED_15M view has none, clear it when the state leaves LOCKED_15M; token held in state only
     - `START` returns `initialState` with the preset set and `busy` true (no vault, token, notice or unreachable marker)
     - Handle `EVALUATED`, `BUSY`, `UNREACHABLE`, `NOTICE`, `FAST_FORWARD_UNAVAILABLE`, `CANCEL_RECONFIRM`
     - _Requirements: 2.5, 3.8, 5.9, 6.14, 8.3, 8.9, 8.10, 12.1_
 
-  - [ ] 7.2 Write property test for token retention
+  - [x] 7.2 Write property test for token retention
     - File: `frontend/src/lib/simulatorReducer.token.pbt.test.ts`
     - **Property 9: Token retention**
     - **Validates: Requirements 8.3, 6.14**
 
-  - [ ] 7.3 Write property test for foreign views
+  - [x] 7.3 Write property test for foreign views
     - File: `frontend/src/lib/simulatorReducer.foreign.pbt.test.ts`
     - **Property 10: Foreign views are discarded**
     - **Validates: Requirements 8.9**
 
-  - [ ] 7.4 Write property test for arrival order
+  - [x] 7.4 Write property test for arrival order
     - File: `frontend/src/lib/simulatorReducer.arrival.pbt.test.ts`
     - **Property 11: Newest arrival wins, and stale polls are dropped**
     - **Validates: Requirements 8.2, 8.10**
 
-  - [ ] 7.5 Write property test for starting a preset
+  - [x] 7.5 Write property test for starting a preset
     - File: `frontend/src/lib/simulatorReducer.start.pbt.test.ts`
     - **Property 16: New preset leaves no residue**
     - **Validates: Requirements 2.5**
 
-  - [ ] 7.6 Implement `frontend/src/lib/vaultSync.ts`
+  - [x] 7.6 Implement `frontend/src/lib/vaultSync.ts`
     - `VaultSync` class with `start()` and idempotent `dispose()`; injectable `EventSource` constructor and timer functions
     - Open `EventSource(eventStreamUrl(id))`; parse each `message` as a `VaultView` and call `onView` (ignore unparseable data); on `error` or close, close the stream and start polling unless the last view was terminal
     - Polling uses a `setTimeout` chain every 2000 ms that schedules the next poll only after the previous one finishes, with an `AbortController`; a failed poll calls `onUnreachable(true)` and keeps polling; the next success calls `onUnreachable(false)`
     - Stop everything after a terminal view; `dispose()` closes the stream, clears timers and aborts the in-flight poll
     - _Requirements: 8.1, 8.2, 8.4, 8.5, 8.6, 8.7, 8.8, 9.7_
 
-  - [ ] 7.7 Write unit tests for `VaultSync`
+  - [x] 7.7 Write unit tests for `VaultSync`
     - File: `frontend/src/lib/vaultSync.test.ts`
     - Fake timers and the stub `EventSource`: stream URL, message parsing, fall back to polling on error, 2-second spacing with no overlap while a poll is pending, stop on a terminal view, `dispose()` on unmount and on a new preset, poll failure keeps polling and toggles the unreachable callback
     - _Requirements: 15.10, 8.1, 8.4, 8.5, 8.6, 8.7, 8.8, 9.7_
 
-  - [ ] 7.8 Write property test for terminal states
+  - [x] 7.8 Write property test for terminal states
     - File: `frontend/src/lib/vaultSync.pbt.test.ts`
     - **Property 7: Terminal states stop the sync**
     - **Validates: Requirements 8.7**
 
-  - [ ] 7.9 Implement `frontend/src/lib/useSimulator.ts`
+  - [x] 7.9 Implement `frontend/src/lib/useSimulator.ts`
     - Owns the reducer, one `VaultSync` and one `AbortController` per in-flight action; exposes `startPreset`, `submitAnswers`, `reconfirm`, `cancelReconfirm`, `veto`, `guardianApprove(confirmed)`, `guardianVeto`, `fastForward`, `refresh`, `retry`
     - `startPreset` disposes the old sync, aborts in-flight requests, dispatches `START`, calls `evaluate`, and starts a `VaultSync` when the first view is not terminal; an unmount effect calls `dispose()`
     - A `run` wrapper maps `NetworkError` to `UNREACHABLE` with a retry closure that repeats the same call (reality-check retry resubmits the kept answers), 409 to `VIEW` plus the "someone already acted" notice, guardian 403 to the `LINK_INVALID` notice, fast-forward 404 to `FAST_FORWARD_UNAVAILABLE`, 400 to a notice with the server `message`; success dispatches `VIEW` with `source: "action"`

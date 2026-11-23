@@ -314,13 +314,16 @@ Both phones call `useCountdown`, and each has its own interval. The Guardian pan
 ### `lib/vaultSync.ts`
 
 ```ts
+export interface ViewMeta { source: "stream" | "poll"; startedAtSeq?: number } // startedAtSeq: poll only
+
 export interface SyncHandlers {
-  onView(v: VaultView): void;      // every parsed, accepted View
-  onUnreachable(on: boolean): void; // poll lost or recovered
+  onView(v: VaultView, meta: ViewMeta): void; // every parsed View for this vault, in arrival order
+  onUnreachable(on: boolean): void;           // poll lost or recovered, reported on each change only
+  getSeq?(): number;                          // the owner's arrival counter, read when a poll is sent
 }
 
 export class VaultSync {
-  constructor(vaultId: string, handlers: SyncHandlers, deps?: { EventSourceCtor?: typeof EventSource; setIntervalFn?: ...; });
+  constructor(vaultId: string, handlers: SyncHandlers, deps?: { EventSourceCtor?: typeof EventSource; setTimeoutFn?; clearTimeoutFn? });
   start(): void;
   dispose(): void;  // closes EventSource, clears timers, aborts in-flight poll
 }
@@ -331,7 +334,8 @@ Behavior:
 - `start()` opens `new EventSource(eventStreamUrl(id))`. A `message` event parses `event.data` as a VaultView and passes it to `onView` (Requirements 8.1, 8.2). A parse failure is ignored for that event.
 - On `error`, or when `readyState === EventSource.CLOSED`, it closes the stream and starts polling (Requirement 8.4). A stream that closes after the last View was terminal does not start polling.
 - Polling uses a `setTimeout` chain, not `setInterval`, so a new request is scheduled 2000 ms after the previous one finishes. That gives the "wait for the previous poll" guarantee by construction (Requirements 8.5, 8.6). The chain uses an `AbortController` aborted in `dispose()`.
-- A failed poll calls `onUnreachable(true)` and keeps the chain going. The next success calls `onUnreachable(false)` (Requirement 9.7).
+- The first poll is sent at once when the stream fails, so there is no gap. A failed poll calls `onUnreachable(true)` and keeps the chain going. The next success calls `onUnreachable(false)` (Requirement 9.7). Neither call repeats while the condition stays the same.
+- A View whose `vault_id` differs from the sync's vault is discarded before it reaches `onView`, so a foreign View can never stop the sync (Requirement 8.9).
 - After `onView` receives a terminal View, the sync object stops itself (Requirement 8.7). `dispose()` is idempotent (Requirement 8.8).
 
 On Lambda the backend closes the stream after about 25 seconds and delivers the first event at close, so the client sees `error` or close and falls back to polling. This is the intended path in cloud mode and needs no special client logic.
@@ -346,7 +350,7 @@ export interface SimState {
   requestSeq: number;             // arrival counter
   lastActionSeq: number;          // seq of the last accepted action response
   busy: boolean;                  // evaluate in flight
-  unreachable: { retry: () => void } | null;
+  unreachable: { retry: () => void; source: "action" | "poll" } | null; // who found the server down
   notice: Notice | null;          // calm message for 400, 403, 409, clipboard
   fastForwardHidden: boolean;
   reconfirmCancelled: boolean;
@@ -357,7 +361,7 @@ export type SimAction =
   | { type: "EVALUATED"; view: VaultView }
   | { type: "VIEW"; view: VaultView; source: "stream" | "poll" | "action"; startedAtSeq?: number }
   | { type: "BUSY"; busy: boolean }
-  | { type: "UNREACHABLE"; retry: (() => void) | null }
+  | { type: "UNREACHABLE"; retry: (() => void) | null; source?: "action" | "poll" } // retry null clears; a poll cannot clear an action's mark
   | { type: "NOTICE"; notice: Notice | null }
   | { type: "FAST_FORWARD_UNAVAILABLE" }
   | { type: "CANCEL_RECONFIRM" };
@@ -374,11 +378,13 @@ Rules inside `reduce` for `VIEW`:
 4. `source === "action"` sets `lastActionSeq` to the current counter.
 5. `reconfirmCancelled` resets to false on any View that changes the state.
 
-`START` returns `initialState` with `preset` set and `busy` true. It never keeps the old `vault`, `guardianToken` or `notice` (Requirement 2.5).
+`START` returns `initialState` with `preset` set and `busy` true. It never keeps the old `vault`, `guardianToken`, `notice` or unreachable mark (Requirement 2.5). It keeps `fastForwardHidden`, because a 404 from fast-forward holds for the whole session (Requirement 5.9).
+
+Other rules: a poll that does not say when it started is kept, since it cannot be judged. A View that changes the state clears the notice and `reconfirmCancelled`. `EVALUATED` counts as the first action response. `CANCEL_RECONFIRM` applies only to an EXPIRED vault that still needs the confirmation. A poll that works again clears only an unreachable mark that a poll set, so it cannot hide a request that failed and was never retried.
 
 ### `lib/useSimulator.ts`
 
-The hook owns the reducer, one `VaultSync` instance and one `AbortController` per in-flight action. It exposes the commands the components call:
+The logic lives in `createSimulator({ getState, dispatch })`, which has no React in it, and `useSimulator` binds it to React. The hook runs the reducer itself and keeps the newest state in a ref, so a command reads the current state at once. The core owns one `VaultSync` instance and one `AbortController` per in-flight request, and a generation number that drops any answer from a scenario that has ended. It exposes the commands the components call:
 
 ```ts
 interface Simulator {
@@ -402,6 +408,7 @@ Each command wraps an API call in `run(fn)`, which:
 - on `ApiError` 409, dispatches `VIEW` with the View in the error and a `NOTICE` "Someone already acted on this payment." (Requirements 4.9, 6.12);
 - on `ApiError` 403 from a guardian action, dispatches a `NOTICE` of kind `LINK_INVALID`, and `refresh()` is what the "Refresh" button calls (Requirement 6.11);
 - on `ApiError` 404 from fast-forward, dispatches `FAST_FORWARD_UNAVAILABLE` (Requirement 5.9);
+- on any other `ApiError` 404, dispatches `UNREACHABLE` with a retry. The design's earlier idea of returning to the preset prompt after a second failed attempt is not built: choosing a preset already does that;
 - on `ApiError` 400, dispatches a `NOTICE` with the server `message` (Requirement 9.4);
 - on success, dispatches `VIEW` with `source: "action"`, and starts a `VaultSync` when the View is the first for a new vault and not terminal.
 
