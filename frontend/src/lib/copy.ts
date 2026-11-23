@@ -78,6 +78,7 @@ export const COPY = {
     no: "No",
     back: "Back",
     sending: "Checking your answers…",
+    earlierAnswer: "Your earlier answer:",
   },
 
   vaultCard: {
