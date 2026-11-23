@@ -3,10 +3,12 @@ module github.com/RahulKumar1119/rukpay/backend
 go 1.21.1
 
 require (
+	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go-v2 v1.30.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.27
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.14.3
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.34.3
+	github.com/awslabs/aws-lambda-go-api-proxy v0.16.2
 	pgregory.net/rapid v1.1.0
 )
 
