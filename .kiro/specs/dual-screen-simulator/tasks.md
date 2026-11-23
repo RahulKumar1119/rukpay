@@ -12,8 +12,8 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
 
 ## Tasks
 
-- [ ] 1. Scaffold the frontend project
-  - [ ] 1.1 Create the Vite, React and TypeScript project files in `frontend/`
+- [x] 1. Scaffold the frontend project
+  - [x] 1.1 Create the Vite, React and TypeScript project files in `frontend/`
     - Files: `package.json`, `tsconfig.json`, `vite.config.ts` (with Vitest config: `jsdom`, `setupFiles`), `index.html`, `src/main.tsx`, `src/test/setup.ts`, `.env.example`
     - Scripts: `dev`, `build`, `preview`, `test` (`vitest run`), `typecheck` (`tsc --noEmit`)
     - `tsconfig.json` has `"strict": true`; dependencies are React, `lucide-react`, Tailwind, Vitest, Testing Library, jsdom and fast-check only (no Redux, Angular or other state library)
@@ -21,13 +21,13 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Create the folders `src/components/`, `src/lib/`, `src/test/`
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 
-  - [ ] 1.2 Configure Tailwind and the global stylesheet
+  - [x] 1.2 Configure Tailwind and the global stylesheet
     - Files: `frontend/tailwind.config.ts`, `frontend/postcss.config.js`, `frontend/src/index.css`
     - Theme colors: `amber-surface #FEF3C7`, `amber-ink #92400E`, `slate-surface #1E293B`, `slate-ink #F8FAFC`, `vault-teal #0F766E`, `veto-red #DC2626`; no `#FF0000` anywhere
     - Base font size 16px; `@media (prefers-reduced-motion: reduce)` disables animation and transition; a global `focus-visible` ring style
     - _Requirements: 13.3, 13.5, 13.6, 13.7, 13.9, 13.11_
 
-  - [ ] 1.3 Add the test stubs in `frontend/src/test/stubs.ts`
+  - [x] 1.3 Add the test stubs in `frontend/src/test/stubs.ts`
     - A `fetch` stub that records calls (method, URL, parsed body) and returns queued responses or rejects
     - An `EventSource` stub class with `emit(data)`, `fail()` and a `closed` flag
     - Helpers to build `VaultView` fixtures for all six states
@@ -43,7 +43,7 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - The existing `cooling-off-vault` tasks 3.4 (`View`) and 3.5 (`Service.Evaluate`) must use these types and not declare their own
     - _Requirements: 2.2, 2.3, 2.4, 10.2, 12.5_
 
-  - [ ]* 2.2 Write a unit test for the struct JSON contract
+  - [ ] 2.2 Write a unit test for the struct JSON contract
     - File: `backend/internal/vault/types_test.go`
     - Marshal and unmarshal both structs; assert the exact JSON key names above, that optional identifier fields are omitted when empty, and that unknown fields (such as `otp`) are dropped at decode and never appear on re-encode
     - _Requirements: 2.2, 12.4, 12.5_
@@ -56,32 +56,32 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Pure apart from `hashIdentifier`: no console, storage, network or DOM use
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.11_
 
-  - [ ]* 3.2 Write unit tests for the masker
+  - [ ] 3.2 Write unit tests for the masker
     - File: `frontend/src/lib/privacyMasker.test.ts`
     - Each Masking_Format, fewer-than-four-digit and malformed cases, a known SHA-256 vector for `hashIdentifier`, and `redactObject` on a sample request body
     - _Requirements: 15.1, 11.1, 11.2, 11.3, 11.5, 11.7, 11.9_
 
-  - [ ]* 3.3 Write property test for masked output formats
+  - [ ] 3.3 Write property test for masked output formats
     - File: `frontend/src/lib/privacyMasker.format.pbt.test.ts`
     - **Property 1: Masked output matches the backend formats**
     - **Validates: Requirements 11.1, 11.2, 11.3, 11.6, 15.2**
 
-  - [ ]* 3.4 Write property test for digit runs
+  - [ ] 3.4 Write property test for digit runs
     - File: `frontend/src/lib/privacyMasker.digits.pbt.test.ts`
     - **Property 2: No long digit run survives masking**
     - **Validates: Requirements 11.10, 15.2**
 
-  - [ ]* 3.5 Write property test for malformed identifiers
+  - [ ] 3.5 Write property test for malformed identifiers
     - File: `frontend/src/lib/privacyMasker.malformed.pbt.test.ts`
     - **Property 3: Malformed identifiers are redacted**
     - **Validates: Requirements 11.4, 11.5**
 
-  - [ ]* 3.6 Write property test for hashing
+  - [ ] 3.6 Write property test for hashing
     - File: `frontend/src/lib/privacyMasker.hash.pbt.test.ts`
     - **Property 4: Hashing is deterministic and discriminating** (async property)
     - **Validates: Requirements 11.7, 11.8, 15.2**
 
-  - [ ]* 3.7 Write property test for object redaction
+  - [ ] 3.7 Write property test for object redaction
     - File: `frontend/src/lib/privacyMasker.redact.pbt.test.ts`
     - **Property 5: Object redaction is deep, total and idempotent**
     - **Validates: Requirements 11.9, 15.2**
@@ -104,17 +104,17 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - No `console` call; error messages never include the token or a Masked_Identifier
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 9.1, 9.4, 9.5_
 
-  - [ ]* 5.2 Write unit tests for the API client
+  - [ ] 5.2 Write unit tests for the API client
     - File: `frontend/src/lib/api.test.ts`
     - Base URL fallback, JSON content type, `AbortSignal` forwarded, 10-second timeout produces `NetworkError`, 409 carries the View, `eventStreamUrl` encodes the id
     - _Requirements: 10.1, 10.4, 10.5, 10.6, 10.7_
 
-  - [ ]* 5.3 Write property test for outbound bodies
+  - [ ] 5.3 Write property test for outbound bodies
     - File: `frontend/src/lib/api.outbound.pbt.test.ts`
     - **Property 12: Outbound bodies carry no sensitive values**
     - **Validates: Requirements 10.8, 12.4, 12.5**
 
-  - [ ]* 5.4 Write property test for error fields
+  - [ ] 5.4 Write property test for error fields
     - File: `frontend/src/lib/api.errors.pbt.test.ts`
     - **Property 14: Errors carry the server fields and no secrets**
     - **Validates: Requirements 10.5, 10.9**
@@ -124,7 +124,7 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Each request carries the masked identifier in `upi_masked` (UPI preset) or `beneficiary_masked` (account presets); no raw identifiers
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.9, 12.2_
 
-  - [ ]* 5.6 Write unit tests for presets
+  - [ ] 5.6 Write unit tests for presets
     - File: `frontend/src/lib/presets.test.ts`
     - Button labels, exact request bodies for all three presets, and every identifier matches one of the three mask regexes
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 12.2_
@@ -133,7 +133,7 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - `UserScreen`, `GuardianScreen`, `deriveUserScreen`, `deriveGuardianScreen`, `isTerminal` following the mapping tables in the design
     - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6, 4.1, 6.1, 6.2, 6.9, 6.10, 8.7_
 
-  - [ ]* 5.8 Write property test for screen derivation
+  - [ ] 5.8 Write property test for screen derivation
     - File: `frontend/src/lib/screens.pbt.test.ts`
     - **Property 6: Exactly one screen per view**
     - **Validates: Requirements 3.3, 3.4, 3.5, 3.6, 4.1, 6.1, 6.2, 6.9, 6.10**
@@ -143,12 +143,12 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - The hook recomputes the local end time on each LOCKED_15M View, ticks once per second from `Date.now()`, calls `onZero` once when the count first reaches zero, refreshes the spoken label at most every 10 seconds, and clears its interval on unmount or when the state leaves LOCKED_15M
     - _Requirements: 5.2, 5.3, 5.4, 5.5, 5.6_
 
-  - [ ]* 5.10 Write property test for countdown arithmetic
+  - [ ] 5.10 Write property test for countdown arithmetic
     - File: `frontend/src/lib/countdown.pbt.test.ts`
     - **Property 8: Countdown arithmetic**
     - **Validates: Requirements 5.2, 5.3, 5.4, 15.4**
 
-  - [ ]* 5.11 Write unit tests for the countdown hook
+  - [ ] 5.11 Write unit tests for the countdown hook
     - File: `frontend/src/lib/countdown.test.tsx`
     - Fake timers: `mm:ss` format, never below `00:00`, recompute when a new `remaining_seconds` arrives, exactly one `onZero` call at `00:00`, spoken label changes no more than once per 10 seconds
     - _Requirements: 15.3, 5.3, 5.4, 5.5, 5.6_
@@ -164,22 +164,22 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Handle `EVALUATED`, `BUSY`, `UNREACHABLE`, `NOTICE`, `FAST_FORWARD_UNAVAILABLE`, `CANCEL_RECONFIRM`
     - _Requirements: 2.5, 3.8, 5.9, 6.14, 8.3, 8.9, 8.10, 12.1_
 
-  - [ ]* 7.2 Write property test for token retention
+  - [ ] 7.2 Write property test for token retention
     - File: `frontend/src/lib/simulatorReducer.token.pbt.test.ts`
     - **Property 9: Token retention**
     - **Validates: Requirements 8.3, 6.14**
 
-  - [ ]* 7.3 Write property test for foreign views
+  - [ ] 7.3 Write property test for foreign views
     - File: `frontend/src/lib/simulatorReducer.foreign.pbt.test.ts`
     - **Property 10: Foreign views are discarded**
     - **Validates: Requirements 8.9**
 
-  - [ ]* 7.4 Write property test for arrival order
+  - [ ] 7.4 Write property test for arrival order
     - File: `frontend/src/lib/simulatorReducer.arrival.pbt.test.ts`
     - **Property 11: Newest arrival wins, and stale polls are dropped**
     - **Validates: Requirements 8.2, 8.10**
 
-  - [ ]* 7.5 Write property test for starting a preset
+  - [ ] 7.5 Write property test for starting a preset
     - File: `frontend/src/lib/simulatorReducer.start.pbt.test.ts`
     - **Property 16: New preset leaves no residue**
     - **Validates: Requirements 2.5**
@@ -191,12 +191,12 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Stop everything after a terminal view; `dispose()` closes the stream, clears timers and aborts the in-flight poll
     - _Requirements: 8.1, 8.2, 8.4, 8.5, 8.6, 8.7, 8.8, 9.7_
 
-  - [ ]* 7.7 Write unit tests for `VaultSync`
+  - [ ] 7.7 Write unit tests for `VaultSync`
     - File: `frontend/src/lib/vaultSync.test.ts`
     - Fake timers and the stub `EventSource`: stream URL, message parsing, fall back to polling on error, 2-second spacing with no overlap while a poll is pending, stop on a terminal view, `dispose()` on unmount and on a new preset, poll failure keeps polling and toggles the unreachable callback
     - _Requirements: 15.10, 8.1, 8.4, 8.5, 8.6, 8.7, 8.8, 9.7_
 
-  - [ ]* 7.8 Write property test for terminal states
+  - [ ] 7.8 Write property test for terminal states
     - File: `frontend/src/lib/vaultSync.pbt.test.ts`
     - **Property 7: Terminal states stop the sync**
     - **Validates: Requirements 8.7**
@@ -256,49 +256,49 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Call `useSimulator` once and pass state and commands down; no login, sign-up or configuration step
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.5, 8.8, 14.6_
 
-  - [ ]* 9.8 Write component tests for the Reality_Check_Modal flow
+  - [ ] 9.8 Write component tests for the Reality_Check_Modal flow
     - File: `frontend/src/components/RealityCheckModal.test.tsx`
     - One question at a time in order, Back keeps answers, submitted body, close on a LOCKED_15M result, close and show the returned state on 409, unreachable retry resubmits the kept answers, `role="dialog"`, `aria-modal`, focus trap and focus move
     - _Requirements: 15.6, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10_
 
-  - [ ]* 9.9 Write property test for the reality-check body
+  - [ ] 9.9 Write property test for the reality-check body
     - File: `frontend/src/components/RealityCheckModal.answers.pbt.test.tsx`
     - **Property 13: Reality-check body reflects the answers**
     - **Validates: Requirements 4.4**
 
-  - [ ]* 9.10 Write component tests for the lock state
+  - [ ] 9.10 Write component tests for the lock state
     - File: `frontend/src/components/lockState.test.tsx`
     - The vault card shows the countdown, a `role="timer"` element and the fast-forward button; the Guardian panel shows the alert; a fast-forward 404 hides the button for the session; the Block & Report button sends the VETO body with the held token
     - _Requirements: 15.7, 5.1, 5.7, 5.8, 5.9, 6.2, 3.9, 3.10_
 
-  - [ ]* 9.11 Write component tests for guardian approval
+  - [ ] 9.11 Write component tests for guardian approval
     - File: `frontend/src/components/guardianApprove.test.tsx`
     - No request after the first tap, second tap sends `{ action: "APPROVE", token, confirmed: true }`, "Go back" sends nothing, `CONFIRMATION_REQUIRED` keeps the second step, 403 shows the link message and "Refresh", 409 applies the returned view and shows the already-acted message
     - _Requirements: 15.8, 6.4, 6.5, 6.6, 6.8, 6.9, 6.11, 6.12_
 
-  - [ ]* 9.12 Write component tests for the veto flow
+  - [ ] 9.12 Write component tests for the veto flow
     - File: `frontend/src/components/veto.test.tsx`
     - VETO request from both phones, Evidence_Card text, `tel:1930` link, `cybercrime.gov.in` link with `rel="noopener noreferrer"`, copy success and clipboard-unavailable messages
     - _Requirements: 15.9, 3.10, 6.7, 6.10, 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ]* 9.13 Write component tests for the presets
+  - [ ] 9.13 Write component tests for the presets
     - File: `frontend/src/App.presets.test.tsx`
     - For each preset: request body sent and the panel shown for INSTANT_PASS, REALITY_CHECK and LOCKED_15M (with the Guardian alert); all three buttons disabled with "Checking this payment…" while evaluate is in flight; pressing a preset discards the previous vault and disposes the old sync; payee label and Masked_Identifier shown; no login step
     - _Requirements: 15.5, 1.5, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
 
-  - [ ]* 9.14 Write component tests for the Unreachable_Notice
+  - [ ] 9.14 Write component tests for the Unreachable_Notice
     - File: `frontend/src/components/unreachable.test.tsx`
     - Exact message text, "Try again" repeats the same failed request, the notice stays until the retry succeeds or a new preset starts, HTTP 400 shows the server message, HTTP 500 shows the notice, poll loss shows it until a poll succeeds
     - _Requirements: 15.11, 9.1, 9.2, 9.3, 9.4, 9.5, 9.7_
 
-  - [ ]* 9.15 Write property test for calm copy
+  - [ ] 9.15 Write property test for calm copy
     - File: `frontend/src/lib/copy.pbt.test.tsx`
     - **Property 15: Copy is calm**
     - Check every string in `ALL_COPY` and the rendered text, `aria-label` and `title` of the App for every Vault_State fixture against the Banned_Terms, case-insensitively
     - **Validates: Requirements 13.1, 13.2**
 
 - [ ] 10. Add smoke checks
-  - [ ]* 10.1 Write smoke tests for project-wide rules
+  - [ ] 10.1 Write smoke tests for project-wide rules
     - File: `frontend/src/test/smoke.test.ts`
     - Source scan of `src/` outside `src/test/` finds no `localStorage`, `sessionStorage`, `document.cookie`, `console.` or `FF0000`; a spy on `Storage.prototype.setItem` and `document.cookie` stays untouched through a locked-to-approved flow; WCAG contrast of each theme text and background pair is at least 7:1 for alert text and the countdown; every rendered `button` and `a` has a `min-h-12` class; `package.json` has no Redux, Angular or other state library
     - _Requirements: 6.14, 12.3, 13.4, 13.5, 13.6, 14.5, 9.6_
