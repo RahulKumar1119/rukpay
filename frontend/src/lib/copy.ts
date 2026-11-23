@@ -30,6 +30,9 @@ export const COPY = {
     safePayee: "Local store",
     mediumPayee: "New contact",
     highPayee: "New account",
+    safeTime: "6:30 PM",
+    mediumTime: "3:15 PM",
+    highTime: "11:45 PM",
     checking: "Checking this payment…",
   },
 
