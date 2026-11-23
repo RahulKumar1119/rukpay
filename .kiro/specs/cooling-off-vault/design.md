@@ -150,6 +150,29 @@ type TokenIssuer interface{ Issue(vaultID string, expiry int64) string }
 // Observer is implemented by guardian.Hub. Called after every successful change.
 type Observer interface{ Publish(View) }
 
+// EvaluateRequest is the body of POST /api/v1/transactions/evaluate (types.go).
+// The embedded risk.Signals has no JSON tag, so the five signals sit at the top
+// level of the body. The type has no field for a raw identifier, OTP, PIN or
+// password, so such a field is dropped at decode.
+type EvaluateRequest struct {
+    risk.Signals                  // amount_inr, beneficiary_age_hours, is_late_night,
+                                  // active_unknown_call, rapid_retry_count
+    PayerAccountMasked string `json:"payer_account_masked,omitempty"`
+    BeneficiaryMasked  string `json:"beneficiary_masked,omitempty"`
+    UPIMasked          string `json:"upi_masked,omitempty"`
+    PhoneMasked        string `json:"phone_masked,omitempty"`
+}
+
+// Metadata is the masked part of a payment that a View carries (types.go).
+// amount_inr is always present. The four identifiers are omitted when empty.
+type Metadata struct {
+    PayerAccountMasked string `json:"payer_account_masked,omitempty"`
+    BeneficiaryMasked  string `json:"beneficiary_masked,omitempty"`
+    UPIMasked          string `json:"upi_masked,omitempty"`
+    PhoneMasked        string `json:"phone_masked,omitempty"`
+    AmountINR          int64  `json:"amount_inr"`
+}
+
 // View is the safe projection of a record. It is the HTTP body, the SSE
 // payload and the Vault_Event. It holds masked metadata only.
 type View struct {
@@ -397,8 +420,10 @@ backend/
     │   ├── vault.go           # Service, load, apply, operations
     │   ├── transitions.go     # allowed table, CanTransition
     │   ├── answers.go         # Answers, CheckAnswers
-    │   ├── view.go            # View, Metadata, view()
+    │   ├── types.go           # EvaluateRequest, Metadata
+    │   ├── view.go            # View, view()
     │   ├── messages.go        # calm copy constants, reasonFor
+    │   ├── types_test.go      # JSON contract of EvaluateRequest and Metadata
     │   ├── vault_test.go
     │   └── vault_pbt_test.go
     ├── guardian/

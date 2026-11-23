@@ -51,7 +51,7 @@ Property tests use `pgregory.net/rapid` with at least 1000 checks each, run unde
     - Pass every reason through `redact.Text`
     - _Requirements: 11.3, 11.4, 11.5_
 
-  - [x] 3.4 Implement `View` and `Metadata` in `backend/internal/vault/view.go`
+  - [x] 3.4 Implement `View` in `backend/internal/vault/view.go` (`Metadata` lives in `types.go`)
     - `View` JSON fields per design: `vault_id`, `state`, `settled`, `risk_score`, `remaining_seconds`, `reconfirm_required`, `reason`, `metadata`, `guardian_token` (LOCKED_15M only), `evidence_summary` (VETOED only)
     - `view(rec, now)` computes `remaining_seconds = max(0, LockDeadline - now)` only while LOCKED, recomputes the token with `issuer.Issue(id, rec.TokenExpiry)` for LOCKED_15M only, and sets `reconfirm_required` when EXPIRED and not settled
     - Define `Clock`, `TokenIssuer` and `Observer` interfaces

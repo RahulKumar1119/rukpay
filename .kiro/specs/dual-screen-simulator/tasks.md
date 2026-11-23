@@ -34,8 +34,8 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Lives under `src/test/` only; no mock data source anywhere else in `src/`
     - _Requirements: 15.12, 15.13, 9.6_
 
-- [ ] 2. Add concrete backend request and metadata structs (open item from design)
-  - [ ] 2.1 Define `EvaluateRequest` and `Metadata` in `backend/internal/vault/types.go` and record them in the vault design
+- [x] 2. Add concrete backend request and metadata structs (open item from design)
+  - [x] 2.1 Define `EvaluateRequest` and `Metadata` in `backend/internal/vault/types.go` and record them in the vault design
     - `EvaluateRequest`: the five Signals with JSON names `amount_inr` (int64), `beneficiary_age_hours` (int64), `is_late_night` (bool), `active_unknown_call` (bool), `rapid_retry_count` (int), plus optional masked identifiers `payer_account_masked`, `beneficiary_masked`, `upi_masked`, `phone_masked` (`omitempty`); expose a method that returns the `risk.Signals`
     - `Metadata`: `amount_inr` plus the same four masked identifier fields, all `omitempty`, used as the `metadata` field of `View`
     - No field for raw identifiers, OTP, PIN or password; identifiers are checked with `store.ValidateMasked` by `Service.Evaluate`
@@ -43,7 +43,7 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - The existing `cooling-off-vault` tasks 3.4 (`View`) and 3.5 (`Service.Evaluate`) must use these types and not declare their own
     - _Requirements: 2.2, 2.3, 2.4, 10.2, 12.5_
 
-  - [ ] 2.2 Write a unit test for the struct JSON contract
+  - [x] 2.2 Write a unit test for the struct JSON contract
     - File: `backend/internal/vault/types_test.go`
     - Marshal and unmarshal both structs; assert the exact JSON key names above, that optional identifier fields are omitted when empty, and that unknown fields (such as `otp`) are dropped at decode and never appear on re-encode
     - _Requirements: 2.2, 12.4, 12.5_

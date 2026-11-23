@@ -38,7 +38,7 @@ The vault design names `EvaluateRequest` and `Metadata` in Go signatures (`Evalu
 3. **No payee label on the backend.** The backend stores no payee name. "Local store", "New contact" and "New account" come from the preset definition, as Requirement 2.9 describes. Panels show the preset's Masked_Identifier and amount, and use `metadata` values only when present.
 4. **`message` versus `reason`.** Vault Requirement 1.1 says evaluate returns "a plain-language message". The View field for that is `reason`. The client reads `reason` and has no `message` field on a View.
 
-Open item for the backend owner: add concrete `EvaluateRequest` and `Metadata` struct definitions with these JSON names to `cooling-off-vault/design.md`. Until then, `api.ts` is the single place to change. Everything in the client reads those names through the `EvaluateRequest` and `VaultMetadata` types.
+Resolved: the backend now declares `EvaluateRequest` and `Metadata` with these JSON names in `backend/internal/vault/types.go`, and `cooling-off-vault/design.md` records them. `types_test.go` pins the key names. `api.ts` is still the single place on the client that holds them, and everything in the client reads them through the `EvaluateRequest` and `VaultMetadata` types.
 
 ## Architecture
 
