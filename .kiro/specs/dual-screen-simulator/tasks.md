@@ -208,18 +208,18 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - `veto` and `guardianVeto` send `{ action: "VETO", token, confirmed: true }` using the held Guardian_Token; no `console`, storage, cookie or URL use
     - _Requirements: 2.5, 2.10, 3.7, 3.10, 4.4, 4.9, 4.10, 5.8, 5.9, 6.5, 6.7, 6.8, 6.11, 6.12, 8.8, 9.1, 9.2, 9.3, 9.4, 9.5, 12.3_
 
-- [ ] 8. Checkpoint - Ensure all tests pass
+- [x] 8. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Implement the components and wire the App
-  - [ ] 9.1 Implement `PhoneFrame.tsx`, `EvidenceCard.tsx` and `UnreachableNotice.tsx` in `frontend/src/components/`
+- [x] 9. Implement the components and wire the App
+  - [x] 9.1 Implement `PhoneFrame.tsx`, `EvidenceCard.tsx` and `UnreachableNotice.tsx` in `frontend/src/components/`
     - `PhoneFrame`: phone-shaped frame, `<section aria-label>` with the given label
     - `EvidenceCard`: selectable `evidence_summary`, statement that the transfer is permanently cancelled and no money has left the account, `tel:1930` link, `cybercrime.gov.in` link with `target="_blank"` and `rel="noopener noreferrer"`, "Copy summary" button with persistent "Summary copied." text and a persistent select-by-hand message when the clipboard is unavailable or rejects; summary kept in the DOM only
     - `UnreachableNotice`: exact message text and a "Try again" button
     - All controls at least 48x48px with 12px spacing, visible focus ring, lucide icon beside status text
     - _Requirements: 1.4, 7.1, 7.2, 7.3, 7.4, 7.5, 9.1, 9.2, 9.3, 12.6, 13.4, 13.9, 13.10_
 
-  - [ ] 9.2 Implement `RealityCheckModal.tsx`
+  - [x] 9.2 Implement `RealityCheckModal.tsx`
     - Props `{ open, onSubmit, unreachable, onRetry }`; one question at a time in the order coercion, secrecy, verification with "Yes" and "No" buttons, "Question N of 3" progress, and a "Back" control that keeps earlier answers
     - After the third answer call `onSubmit({ coercion, secrecy, verification })`
     - `role="dialog"`, `aria-modal="true"`, `aria-labelledby` title, keyboard focus trap (Tab and Shift+Tab loop), focus moved to the first answer button on each new question
@@ -227,83 +227,83 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Amber surface (`#FEF3C7` / `#92400E`), questions at 18px or larger, no red
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.7, 4.8, 4.10, 13.3, 13.6_
 
-  - [ ] 9.3 Implement `CoolingOffVaultCard.tsx`
+  - [x] 9.3 Implement `CoolingOffVaultCard.tsx`
     - Props `{ view, onExpire, onFastForward, fastForwardHidden }`; vault icon, protective-pause message, countdown from `useCountdown` inside `role="timer"` with the spoken `aria-label`, countdown at 20px or larger
     - "Demo: skip the wait" button hidden when `fastForwardHidden` is true
     - Deep teal surface `#0F766E` with white text
     - _Requirements: 5.1, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10, 13.3, 13.5_
 
-  - [ ] 9.4 Implement `PresetBar.tsx`
+  - [x] 9.4 Implement `PresetBar.tsx`
     - Three buttons from `PRESETS` labeled "Safe daily payment", "Medium-risk unusual transfer" and "High-risk panic transfer"
     - All three disabled while `busy`, with a persistent "Checking this payment…" status
     - _Requirements: 2.1, 2.10, 13.4, 13.8_
 
-  - [ ] 9.5 Implement `UserPhonePanel.tsx`
+  - [x] 9.5 Implement `UserPhonePanel.tsx`
     - Show the payee label, the preset's Masked_Identifier, the amount with `₹` (from `metadata.amount_inr` when present, else the preset), a status line with a lucide icon, and the View `reason`
     - Switch on `deriveUserScreen`: PROMPT, SENT, CHECKING (status line plus `RealityCheckModal`), CONTINUE ("Continue payment" button and calm message, moves to the SENT confirmation through local state), LOCKED (`CoolingOffVaultCard` and the red "Block & Report (1930)" button), RELEASED (names the family guardian's approval), CANCELLED (`EvidenceCard`), RECONFIRM ("Yes, this is my payment" calls `reconfirm`; "Cancel and keep my money" dispatches `CANCEL_RECONFIRM` with no request), DONE
     - Show inline notices and the `UnreachableNotice` until the state changes or the user acts; no toasts
     - _Requirements: 2.6, 2.7, 2.8, 2.9, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 4.5, 4.6, 4.9, 12.1, 13.7, 13.8_
 
-  - [ ] 9.6 Implement `GuardianPhonePanel.tsx`
+  - [x] 9.6 Implement `GuardianPhonePanel.tsx`
     - Switch on `deriveGuardianScreen`: IDLE ("Nothing needs your attention right now"), ALERT (`reason`, amount, payee Masked_Identifier, countdown, "I Spoke With Them — Safe to Approve" and the red "Block & Report Scam (1930)"), APPROVED ("Payment approved"), VETOED (`EvidenceCard`)
     - First tap on approve sets local `confirming` and sends nothing; "Are you sure you spoke with them directly?" with "Yes, approve" (sends APPROVE with `confirmed` true) and "Go back" (no request); `CONFIRMATION_REQUIRED` keeps the second step visible
     - 403 shows the approval-link-no-longer-valid message with a "Refresh" button; 409 shows the "someone already acted" message
     - Show only `reason`, amount and Masked_Identifiers; take the Guardian_Token from reducer state and never write it to storage, cookies or the URL
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14, 13.7_
 
-  - [ ] 9.7 Implement `frontend/src/App.tsx` and mount it in `main.tsx`
+  - [x] 9.7 Implement `frontend/src/App.tsx` and mount it in `main.tsx`
     - Root `flex flex-col gap-6 lg:flex-row` layout: Preset_Bar above both panels; User_Phone_Panel ("Your phone") on the left and Guardian_Phone_Panel ("Family guardian's phone") on the right at 1024px and wider, stacked below that width
     - Call `useSimulator` once and pass state and commands down; no login, sign-up or configuration step
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.5, 8.8, 14.6_
 
-  - [ ] 9.8 Write component tests for the Reality_Check_Modal flow
+  - [x] 9.8 Write component tests for the Reality_Check_Modal flow
     - File: `frontend/src/components/RealityCheckModal.test.tsx`
     - One question at a time in order, Back keeps answers, submitted body, close on a LOCKED_15M result, close and show the returned state on 409, unreachable retry resubmits the kept answers, `role="dialog"`, `aria-modal`, focus trap and focus move
     - _Requirements: 15.6, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10_
 
-  - [ ] 9.9 Write property test for the reality-check body
+  - [x] 9.9 Write property test for the reality-check body
     - File: `frontend/src/components/RealityCheckModal.answers.pbt.test.tsx`
     - **Property 13: Reality-check body reflects the answers**
     - **Validates: Requirements 4.4**
 
-  - [ ] 9.10 Write component tests for the lock state
+  - [x] 9.10 Write component tests for the lock state
     - File: `frontend/src/components/lockState.test.tsx`
     - The vault card shows the countdown, a `role="timer"` element and the fast-forward button; the Guardian panel shows the alert; a fast-forward 404 hides the button for the session; the Block & Report button sends the VETO body with the held token
     - _Requirements: 15.7, 5.1, 5.7, 5.8, 5.9, 6.2, 3.9, 3.10_
 
-  - [ ] 9.11 Write component tests for guardian approval
+  - [x] 9.11 Write component tests for guardian approval
     - File: `frontend/src/components/guardianApprove.test.tsx`
     - No request after the first tap, second tap sends `{ action: "APPROVE", token, confirmed: true }`, "Go back" sends nothing, `CONFIRMATION_REQUIRED` keeps the second step, 403 shows the link message and "Refresh", 409 applies the returned view and shows the already-acted message
     - _Requirements: 15.8, 6.4, 6.5, 6.6, 6.8, 6.9, 6.11, 6.12_
 
-  - [ ] 9.12 Write component tests for the veto flow
+  - [x] 9.12 Write component tests for the veto flow
     - File: `frontend/src/components/veto.test.tsx`
     - VETO request from both phones, Evidence_Card text, `tel:1930` link, `cybercrime.gov.in` link with `rel="noopener noreferrer"`, copy success and clipboard-unavailable messages
     - _Requirements: 15.9, 3.10, 6.7, 6.10, 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ] 9.13 Write component tests for the presets
+  - [x] 9.13 Write component tests for the presets
     - File: `frontend/src/App.presets.test.tsx`
     - For each preset: request body sent and the panel shown for INSTANT_PASS, REALITY_CHECK and LOCKED_15M (with the Guardian alert); all three buttons disabled with "Checking this payment…" while evaluate is in flight; pressing a preset discards the previous vault and disposes the old sync; payee label and Masked_Identifier shown; no login step
     - _Requirements: 15.5, 1.5, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
 
-  - [ ] 9.14 Write component tests for the Unreachable_Notice
+  - [x] 9.14 Write component tests for the Unreachable_Notice
     - File: `frontend/src/components/unreachable.test.tsx`
     - Exact message text, "Try again" repeats the same failed request, the notice stays until the retry succeeds or a new preset starts, HTTP 400 shows the server message, HTTP 500 shows the notice, poll loss shows it until a poll succeeds
     - _Requirements: 15.11, 9.1, 9.2, 9.3, 9.4, 9.5, 9.7_
 
-  - [ ] 9.15 Write property test for calm copy
+  - [x] 9.15 Write property test for calm copy
     - File: `frontend/src/lib/copy.pbt.test.tsx`
     - **Property 15: Copy is calm**
     - Check every string in `ALL_COPY` and the rendered text, `aria-label` and `title` of the App for every Vault_State fixture against the Banned_Terms, case-insensitively
     - **Validates: Requirements 13.1, 13.2**
 
-- [ ] 10. Add smoke checks
-  - [ ] 10.1 Write smoke tests for project-wide rules
+- [x] 10. Add smoke checks
+  - [x] 10.1 Write smoke tests for project-wide rules
     - File: `frontend/src/test/smoke.test.ts`
     - Source scan of `src/` outside `src/test/` finds no `localStorage`, `sessionStorage`, `document.cookie`, `console.` or `FF0000`; a spy on `Storage.prototype.setItem` and `document.cookie` stays untouched through a locked-to-approved flow; WCAG contrast of each theme text and background pair is at least 7:1 for alert text and the countdown; every rendered `button` and `a` has a `min-h-12` class; `package.json` has no Redux, Angular or other state library
     - _Requirements: 6.14, 12.3, 13.4, 13.5, 13.6, 14.5, 9.6_
 
-- [ ] 11. Final checkpoint - Ensure all tests pass
+- [x] 11. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

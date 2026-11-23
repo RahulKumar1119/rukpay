@@ -5,7 +5,7 @@
 
 Anti-panic behavioral payment firewall combining scam-stress detection, 15-minute cooling-off locks, and family co-approval. Built for Kiroween 2026.
 
-> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB), the cooling-off vault rules, the guardian flow and the HTTP API, with a local server and a Lambda entry point. The React front end is scaffolded and its screens are not built yet. The one-command deploy is planned and not built yet. See [Status](#status).
+> **Project status:** the backend foundation is built and tested: the behavioral risk engine, the vault store (in-memory and DynamoDB), the cooling-off vault rules, the guardian flow and the HTTP API, with a local server and a Lambda entry point. The React front end is built: the two-phone demo with three one-click presets. The one-command deploy is planned and not built yet. See [Status](#status).
 
 ## The problem
 
@@ -89,7 +89,7 @@ A "yes" to the first two, or a "no" to the third, locks the payment for 900 seco
 | Cooling-off vault rules (`backend/internal/vault`) and redaction (`backend/internal/redact`) | Built and tested. Spec: [`cooling-off-vault`](.kiro/specs/cooling-off-vault) |
 | Guardian token, approve and veto, evidence summary and event hub (`backend/internal/guardian`) | Built and tested. Same spec. |
 | HTTP API (`backend/internal/httpapi`), the local server (`cmd/server`) and the Lambda entry point (`cmd/lambda`) | Built and tested. Same spec. The Lambda function has not been deployed. |
-| React front end with the two-phone demo | All the logic is built and tested: privacy masker, copy, API client, presets, screen derivation, countdown, the state reducer, live sync (event stream with polling fallback) and the simulator hook. The phone screens and the App are not built yet. Spec: [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) |
+| React front end with the two-phone demo | Built and tested: both phones, the preset bar, the reality-check dialog, the vault card with its countdown, guardian approve and block, the evidence card and the unreachable notice. Walked through once in a real browser against the local server. Not yet deployed. Spec: [`dual-screen-simulator`](.kiro/specs/dual-screen-simulator) |
 | `infra/deploy.sh` and the SAM template | Planned |
 
 ## Architecture
@@ -147,7 +147,8 @@ rukpay/
 │       └── vault/               Cooling-off rules: transitions, lazy expiry, reality check, fast-forward
 ├── frontend/                    React and Vite app
 │   └── src/
-│       ├── components/          Phone panels and cards (not written yet)
+│       ├── components/          PhoneFrame, UserPhonePanel, GuardianPhonePanel, RealityCheckModal,
+│       │                        CoolingOffVaultCard, EvidenceCard, PresetBar, UnreachableNotice
 │       ├── lib/                 privacyMasker, copy, api, presets, screens, countdown,
 │       │                        simulatorReducer, vaultSync, useSimulator
 │       └── test/                Vitest setup, the fetch and EventSource stubs, property-test helpers
@@ -219,6 +220,8 @@ cp .env.example .env          # VITE_API_BASE_URL=http://localhost:8080
 npm install
 npm run dev                   # http://localhost:5173
 ```
+
+Start the backend first, in demo mode, so the "Demo: skip the wait" button works (see [Run the server](#run-the-server)). Then open the page and press a preset. There is no login.
 
 The dev server uses port 5173 and fails if the port is taken, because the backend allows that origin by default. Other scripts: `npm run typecheck`, `npm run build` and `npm test`. Each property test runs 1,000 generated inputs.
 
@@ -402,7 +405,7 @@ Always-on guidance lives in `.kiro/steering/`: the tech stack, the anti-panic UX
 
 ## Roadmap
 
-1. React front end with the two-phone layout and the three one-click presets. The logic is done. The phone screens and the App are next.
+1. ~~React front end with the two-phone layout and the three one-click presets.~~ Built, with smoke checks for the project-wide rules (no storage, console or pure red, 48 pixel controls, 7:1 contrast, no state library).
 2. One-command deploy: `infra/deploy.sh` and a SAM template for the table, the Lambda Function URL and its permissions.
 3. Run the DynamoDB adapter against DynamoDB Local and real DynamoDB.
 

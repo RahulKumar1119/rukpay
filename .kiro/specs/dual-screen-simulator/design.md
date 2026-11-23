@@ -440,12 +440,12 @@ Above the screen it always shows the payee label, the preset's Masked_Identifier
 - `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing at the title. A small focus-trap routine (Tab and Shift+Tab loop over the focusable elements inside) is implemented in the component with no library. On each step change, focus moves to the "Yes" button.
 - "Back" decrements `step` and keeps `answers`. After the third answer it calls `onSubmit` with `{ coercion, secrecy, verification }`.
 - On a network failure, the modal shows the `UnreachableNotice` and keeps `answers`. The retry button calls `onRetry`, which the hook backs with the same three answers.
-- Background and text use the amber surface (`#FEF3C7` / `#92400E`) at 18 px or larger. There is no red.
+- The surface is amber (`#FEF3C7`) with dark amber text (`#78350F`, 8.2:1) at 18 px or larger. The steering text color `#92400E` is only 6.4:1 on that surface, below the 7:1 minimum for alert text, so it is used for icons and borders only. There is no red. The modal is an `absolute inset-0` sheet inside the phone frame, and it restores focus to the control that had it when it closes.
 
 **`CoolingOffVaultCard`** props: `{ view: VaultView; onExpire(): void; onFastForward(): void; fastForwardHidden: boolean }`.
 
 - Shows the vault icon (`Vault` or `ShieldCheck`), the protective-pause message, and the countdown in `<div role="timer" aria-label={spoken}>` at 20 px or larger.
-- Deep teal surface `#0F766E` with white text (contrast above 7:1).
+- A deep teal frame (`#0F766E`) around a darker panel (`#134E4A`) that holds all the text. White on `#0F766E` is only 5.5:1, so the text sits on `#134E4A` (9.5:1). The countdown is a white-on-`#134E4A` chip, shared with the Guardian panel.
 - The "Demo: skip the wait" button is hidden when `fastForwardHidden` is true.
 
 **`GuardianPhonePanel`** switches on `deriveGuardianScreen`:
@@ -477,7 +477,7 @@ The protective-pause message reads: "We're holding this safely for 15 minutes so
 
 ### Visual rules
 
-- Tailwind theme extends colors: `amber-surface #FEF3C7`, `amber-ink #92400E`, `slate-surface #1E293B`, `slate-ink #F8FAFC`, `vault-teal #0F766E`, `veto-red #DC2626`. `#FF0000` appears nowhere.
+- Tailwind theme extends colors: `amber-surface #FEF3C7`, `amber-ink #92400E` (icons and borders), `amber-text #78350F`, `slate-surface #1E293B`, `slate-ink #F8FAFC`, `vault-teal #0F766E`, `vault-deep #134E4A`, `veto-red #DC2626`. `#FF0000` appears nowhere. White on `veto-red` is 4.8:1, so the two "Block & Report" buttons use 20 px bold text, which counts as large text. The contrast ratios are written next to the colors in `tailwind.config.ts`.
 - `veto-red` with white text is used only by the two "Block & Report" buttons.
 - Base font size 16 px. Question text, state status lines and the countdown use `text-lg` (18 px) or `text-xl`.
 - Every button and link uses `min-h-12 min-w-12`, with `gap-3` (12 px) between neighbors, and a `focus-visible:ring-4` ring.
