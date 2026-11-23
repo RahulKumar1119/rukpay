@@ -239,8 +239,8 @@ Rules:
 - `redactObject` walks arrays and plain objects. A key matching `/^(otp|pin|password|passcode|cvv)$/i` gets `[REDACTED]`. A string value is tested against these patterns in this order, and the first match is replaced by its masked form:
   - already masked (matches one of the three backend regexes): left unchanged, so the function is idempotent;
   - UPI: `^[^\s@]+@[A-Za-z0-9.\-]+$`;
-  - phone: `^(\+91[\s-]?)?[6-9]\d{9}$` after removing spaces and hyphens;
-  - account: `^\d{9,18}$`.
+  - phone: `^(\+91)?[6-9]\d{9}$` after removing spaces and hyphens;
+  - account: `^\d{9,18}$`, also after removing spaces and hyphens, so `1234 5678 9012` is caught.
 - Numbers, booleans and null pass through. `amount_inr`, `beneficiary_age_hours` and `rapid_retry_count` are numbers, so they are never altered. The module touches no console, storage, network or DOM except `crypto.subtle` in `hashIdentifier` (Requirement 11.11).
 
 Free text such as `reason` or `evidence_summary` is never run through the account and phone patterns because those patterns anchor on the whole string. The `evidence_summary` is displayed as received, since the backend has already redacted it.
@@ -460,7 +460,7 @@ The panel renders `reason`, amount and Masked_Identifiers only (Requirement 6.13
 
 ### `lib/copy.ts`
 
-All strings are constants, grouped by screen. A helper `ALL_COPY: string[]` lists every constant for the banned-term test. The reality-check questions are copied from the steering document:
+All strings are constants in one `COPY` object, grouped by screen (`app`, `presetBar`, `userPanel`, `realityCheck`, `vaultCard`, `guardianPanel`, `evidence`, `unreachable`, `notices`, `common`). `ALL_COPY: string[]` is built by walking `COPY`, so a string added to a group is covered by the banned-term test without a second edit. `questionProgress(n)` returns "Question n of 3" and its three outputs are in `ALL_COPY`. The reality-check questions are copied from the steering document:
 
 1. "Are you currently on a phone or video call with someone claiming to be from Police, CBI, Customs, RBI, or your Bank?"
 2. "Did the caller ask you NOT to tell your family or bank staff about this transfer?"

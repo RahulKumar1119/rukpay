@@ -48,45 +48,45 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Marshal and unmarshal both structs; assert the exact JSON key names above, that optional identifier fields are omitted when empty, and that unknown fields (such as `otp`) are dropped at decode and never appear on re-encode
     - _Requirements: 2.2, 12.4, 12.5_
 
-- [ ] 3. Implement the privacy masker and the copy module
-  - [ ] 3.1 Implement `frontend/src/lib/privacyMasker.ts`
+- [x] 3. Implement the privacy masker and the copy module
+  - [x] 3.1 Implement `frontend/src/lib/privacyMasker.ts`
     - Export `maskAccount`, `maskPhone`, `maskUpi`, `redactSecret`, `hashIdentifier` (SHA-256 hex of the trimmed, lowercased value via `crypto.subtle.digest`) and `redactObject` (deep copy, idempotent, does not modify its input)
     - `maskUpi` output must match `^[A-Za-z0-9]\*\*\*@[A-Za-z0-9.\-]+$`; malformed input returns `[REDACTED]`
     - `redactObject` replaces the values of keys `otp|pin|password|passcode|cvv` (case-insensitive) and maps whole-string unmasked account, phone and UPI values to their masked form; already-masked strings, numbers and booleans pass through
     - Pure apart from `hashIdentifier`: no console, storage, network or DOM use
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.11_
 
-  - [ ] 3.2 Write unit tests for the masker
+  - [x] 3.2 Write unit tests for the masker
     - File: `frontend/src/lib/privacyMasker.test.ts`
     - Each Masking_Format, fewer-than-four-digit and malformed cases, a known SHA-256 vector for `hashIdentifier`, and `redactObject` on a sample request body
     - _Requirements: 15.1, 11.1, 11.2, 11.3, 11.5, 11.7, 11.9_
 
-  - [ ] 3.3 Write property test for masked output formats
+  - [x] 3.3 Write property test for masked output formats
     - File: `frontend/src/lib/privacyMasker.format.pbt.test.ts`
     - **Property 1: Masked output matches the backend formats**
     - **Validates: Requirements 11.1, 11.2, 11.3, 11.6, 15.2**
 
-  - [ ] 3.4 Write property test for digit runs
+  - [x] 3.4 Write property test for digit runs
     - File: `frontend/src/lib/privacyMasker.digits.pbt.test.ts`
     - **Property 2: No long digit run survives masking**
     - **Validates: Requirements 11.10, 15.2**
 
-  - [ ] 3.5 Write property test for malformed identifiers
+  - [x] 3.5 Write property test for malformed identifiers
     - File: `frontend/src/lib/privacyMasker.malformed.pbt.test.ts`
     - **Property 3: Malformed identifiers are redacted**
     - **Validates: Requirements 11.4, 11.5**
 
-  - [ ] 3.6 Write property test for hashing
+  - [x] 3.6 Write property test for hashing
     - File: `frontend/src/lib/privacyMasker.hash.pbt.test.ts`
     - **Property 4: Hashing is deterministic and discriminating** (async property)
     - **Validates: Requirements 11.7, 11.8, 15.2**
 
-  - [ ] 3.7 Write property test for object redaction
+  - [x] 3.7 Write property test for object redaction
     - File: `frontend/src/lib/privacyMasker.redact.pbt.test.ts`
     - **Property 5: Object redaction is deep, total and idempotent**
     - **Validates: Requirements 11.9, 15.2**
 
-  - [ ] 3.8 Implement `frontend/src/lib/copy.ts`
+  - [x] 3.8 Implement `frontend/src/lib/copy.ts`
     - Every user-facing string as a constant grouped by screen, plus `ALL_COPY: string[]` listing them all
     - Steering wording for the three reality-check questions, the protective-pause message ("We're holding this safely for 15 minutes so you have space to verify."), the Unreachable_Notice text ("We can't reach RukPay right now. Your money has not moved. Please try again."), the guardian second-confirmation text, button labels, and notice messages for `BAD_REQUEST`, `LINK_INVALID`, `ALREADY_ACTED` and `COPY_FAILED`
     - Plain, 6th-grade language; no Banned_Terms; lock described as a protective pause
