@@ -157,7 +157,7 @@ rukpay/
 │   ├── steering/                Always-on rules: tech stack, anti-panic UX, skills
 │   ├── hooks/                   Automation hooks (run Go tests on save, PII and tone check)
 │   └── skills/                  Repo-local skills (Go property-test conventions)
-├── .github/workflows/           CodeQL analysis
+├── .github/workflows/           CodeQL analysis (Go, TypeScript) and CI (backend and frontend checks)
 ├── AGENTS.md                    Rules for AI coding agents working in this repo
 └── LICENSE
 ```
