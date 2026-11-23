@@ -50,9 +50,15 @@ const manifest = (name: string): Record<string, unknown> => {
   return JSON.parse(entry[1]) as Record<string, unknown>;
 };
 
-/** Removes comments, so a sentence that mentions a banned word is not mistaken for code. A `//` after a colon is a URL and stays. */
+/**
+ * Removes `/* *\/` and `//` comments, so a sentence that mentions a banned word is
+ * not mistaken for code. A `//` after a colon is a URL and stays.
+ *
+ * HTML comments are not removed. `index.html` is scanned as it is, and it has no
+ * comment that names a banned word.
+ */
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
 const FORBIDDEN: [string, RegExp][] = [
