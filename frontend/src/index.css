@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* 16 px is the smallest body size. Larger text is set per component. */
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: #f8fafc;
+    color: #1e293b;
+    font-family:
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans",
+      "Noto Sans Devanagari", sans-serif;
+    line-height: 1.5;
+  }
+
+  /*
+   * One visible focus ring for every control. The light inner ring and the dark
+   * outer ring keep it visible on the amber, slate and teal surfaces. The
+   * transparent outline stays visible in forced-colors mode.
+   */
+  :focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow:
+      0 0 0 2px #f8fafc,
+      0 0 0 5px #1e293b;
+  }
+}
+
+/* Calm by default for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
