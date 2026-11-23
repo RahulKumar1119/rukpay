@@ -183,7 +183,7 @@ export interface GuardianActionResult {
   vault: VaultView;
 }
 
-export interface ErrorBody { error: { code: string; message: string; field?: string } }
+export interface ErrorBody { error: { code: string; message: string; field?: string }; vault?: VaultView } // vault: HTTP 409 only
 
 export class ApiError extends Error {
   constructor(
@@ -210,8 +210,8 @@ export function eventStreamUrl(id: string): string; // `${API_BASE}/api/v1/event
 
 One private `request<T>(method, path, body, signal)` does the work:
 
-1. Serializes `redactObject(body)` as JSON with `Content-Type: application/json` (Requirements 10.4, 10.8).
-2. Combines the caller's `AbortSignal` with a 10-second timeout signal (`AbortSignal.any` where available, otherwise a manual controller).
+1. Serializes `redactObject(body)` as JSON with `Content-Type: application/json` (Requirements 10.4, 10.8). A request with no body (GET, fast-forward) sends no `Content-Type`, so the 2-second poll does not trigger a CORS preflight.
+2. Combines the caller's `AbortSignal` with a 10-second timeout through one `AbortController` and a `setTimeout`. It does not use `AbortSignal.timeout` or `AbortSignal.any`, so tests can move the timeout with fake timers. The timer is cleared when the request ends.
 3. A `fetch` rejection, a timeout abort, or an unparseable body on a 5xx throws `NetworkError`. A caller abort rethrows as `AbortError` so callers can tell it from a failure.
 4. A non-2xx status with a parseable error body throws `ApiError(status, code, message, field, status === 409 ? body.vault ?? body : undefined)`. A 5xx or unreadable body throws `NetworkError`, which the UI shows as the Unreachable_Notice (Requirement 9.5).
 5. Error messages are built from the server's `message` field and the status only. Neither the token nor any identifier is formatted into an error (Requirement 10.9). `api.ts` never calls `console`.
@@ -265,7 +265,7 @@ export const PRESETS: readonly [Preset, Preset, Preset];
 | medium | Medium-risk unusual transfer | New contact | `XXXX-XXXX-3307` | 18000, 6, false, false, 0 |
 | high | High-risk panic transfer | New account | `XXXX-XXXX-4821` | 85000, 1, true, true, 0 |
 
-The request also carries the preset's masked identifier in `upi_masked` (for the UPI preset) or `beneficiary_masked` (for account presets). The module holds no raw identifiers, and a unit test asserts every identifier in `PRESETS` matches one of the three mask regexes (Requirement 12.2).
+The time labels are "6:30 PM" (safe), "3:15 PM" (medium) and "11:45 PM" (high), and they live in `copy.ts` with the other labels. The request also carries the preset's masked identifier in `upi_masked` (for the UPI preset) or `beneficiary_masked` (for account presets). The module holds no raw identifiers, and a unit test asserts every identifier in `PRESETS` matches one of the three mask regexes (Requirement 12.2).
 
 ### `lib/screens.ts`
 
@@ -307,7 +307,7 @@ export function spokenCountdown(totalSeconds: number): string;                //
 export function useCountdown(view: VaultView | null, onZero: () => void): { text: string; spoken: string };
 ```
 
-`useCountdown` stores `endMs` in a ref, recomputed whenever a View with state LOCKED_15M arrives (Requirements 5.2, 5.4). A `setInterval` at 1000 ms recomputes `secondsLeft` from `Date.now()`. When `secondsLeft` first reaches 0 for a given `vault_id` and end time, it calls `onZero` once (Requirement 5.5). The caller's `onZero` runs one `getVault`. The `spoken` text used for `aria-label` is refreshed only when the number of seconds, floored to a 10-second step, changes (Requirement 5.6). The interval is cleared on unmount and when the state leaves LOCKED_15M.
+`useCountdown` stores `endMs` in a ref, recomputed whenever a View with state LOCKED_15M arrives (Requirements 5.2, 5.4). A `setInterval` at 1000 ms recomputes `secondsLeft` from `Date.now()`. When `secondsLeft` first reaches 0 for a given `vault_id` and end time, it calls `onZero` once (Requirement 5.5). The caller's `onZero` runs one `getVault`. The `spoken` text used for `aria-label` is refreshed at most once every 10 seconds of clock time, and the first label is set at once (Requirement 5.6). The effect restarts only when `locked`, `vault_id` or `remaining_seconds` changes, so a parent that re-renders with an equal View does not reset the count. `onZero` is armed again by any View with time left or by a different vault, and it is read through a ref so the latest callback is used. The interval is cleared on unmount and when the state leaves LOCKED_15M.
 
 Both phones call `useCountdown`, and each has its own interval. The Guardian panel's `onZero` is a no-op, because the User panel already makes the single fetch.
 

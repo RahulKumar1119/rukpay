@@ -92,11 +92,11 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - Plain, 6th-grade language; no Banned_Terms; lock described as a protective pause
     - _Requirements: 13.1, 13.2, 9.1, 4.2, 6.4, 6.11, 6.12, 7.5_
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement the API client, presets, screen derivation and countdown
-  - [ ] 5.1 Implement `frontend/src/lib/api.ts`
+- [x] 5. Implement the API client, presets, screen derivation and countdown
+  - [x] 5.1 Implement `frontend/src/lib/api.ts`
     - Export the types from the design (`VaultState`, `Signals`, `EvaluateRequest`, `VaultMetadata`, `VaultView`, `Answers`, `RealityCheckRequest` as a union of `answers` and `reconfirm`, `GuardianActionRequest`, `GuardianActionResult`, `ErrorBody`), `ApiError` (status, code, message, field, vault for 409), `NetworkError`, `API_BASE`, `REQUEST_TIMEOUT_MS = 10_000`
     - Export `evaluate`, `getVault`, `submitAnswers`, `reconfirm`, `guardianAction`, `demoFastForward` and `eventStreamUrl`
     - One private `request` sends JSON with `Content-Type: application/json`, passes the body through `redactObject`, combines the caller's `AbortSignal` with a 10-second timeout, throws `NetworkError` on fetch failure, timeout, 5xx or unreadable body, and `ApiError` on other non-2xx responses (409 carries the View from `vault` or a View-shaped body)
@@ -104,56 +104,56 @@ Tests use Vitest, Testing Library and fast-check (at least 100 runs per property
     - No `console` call; error messages never include the token or a Masked_Identifier
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 9.1, 9.4, 9.5_
 
-  - [ ] 5.2 Write unit tests for the API client
+  - [x] 5.2 Write unit tests for the API client
     - File: `frontend/src/lib/api.test.ts`
     - Base URL fallback, JSON content type, `AbortSignal` forwarded, 10-second timeout produces `NetworkError`, 409 carries the View, `eventStreamUrl` encodes the id
     - _Requirements: 10.1, 10.4, 10.5, 10.6, 10.7_
 
-  - [ ] 5.3 Write property test for outbound bodies
+  - [x] 5.3 Write property test for outbound bodies
     - File: `frontend/src/lib/api.outbound.pbt.test.ts`
     - **Property 12: Outbound bodies carry no sensitive values**
     - **Validates: Requirements 10.8, 12.4, 12.5**
 
-  - [ ] 5.4 Write property test for error fields
+  - [x] 5.4 Write property test for error fields
     - File: `frontend/src/lib/api.errors.pbt.test.ts`
     - **Property 14: Errors carry the server fields and no secrets**
     - **Validates: Requirements 10.5, 10.9**
 
-  - [ ] 5.5 Implement `frontend/src/lib/presets.ts`
+  - [x] 5.5 Implement `frontend/src/lib/presets.ts`
     - `Preset` interface and `PRESETS` tuple with exactly the three presets: Safe (450, 720, false, false, 0; "Local store"; `s***@okaxis`), Medium (18000, 6, false, false, 0; "New contact"; `XXXX-XXXX-3307`), High (85000, 1, true, true, 0; "New account"; `XXXX-XXXX-4821`, time label "11:45 PM")
     - Each request carries the masked identifier in `upi_masked` (UPI preset) or `beneficiary_masked` (account presets); no raw identifiers
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.9, 12.2_
 
-  - [ ] 5.6 Write unit tests for presets
+  - [x] 5.6 Write unit tests for presets
     - File: `frontend/src/lib/presets.test.ts`
     - Button labels, exact request bodies for all three presets, and every identifier matches one of the three mask regexes
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 12.2_
 
-  - [ ] 5.7 Implement `frontend/src/lib/screens.ts`
+  - [x] 5.7 Implement `frontend/src/lib/screens.ts`
     - `UserScreen`, `GuardianScreen`, `deriveUserScreen`, `deriveGuardianScreen`, `isTerminal` following the mapping tables in the design
     - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6, 4.1, 6.1, 6.2, 6.9, 6.10, 8.7_
 
-  - [ ] 5.8 Write property test for screen derivation
+  - [x] 5.8 Write property test for screen derivation
     - File: `frontend/src/lib/screens.pbt.test.ts`
     - **Property 6: Exactly one screen per view**
     - **Validates: Requirements 3.3, 3.4, 3.5, 3.6, 4.1, 6.1, 6.2, 6.9, 6.10**
 
-  - [ ] 5.9 Implement `frontend/src/lib/countdown.ts`
+  - [x] 5.9 Implement `frontend/src/lib/countdown.ts`
     - `endTimeFrom`, `secondsLeft` (`max(0, ceil(...))`), `formatCountdown` (`mm:ss`, clamped at `00:00`), `parseCountdown`, `spokenCountdown`, and the `useCountdown(view, onZero)` hook
     - The hook recomputes the local end time on each LOCKED_15M View, ticks once per second from `Date.now()`, calls `onZero` once when the count first reaches zero, refreshes the spoken label at most every 10 seconds, and clears its interval on unmount or when the state leaves LOCKED_15M
     - _Requirements: 5.2, 5.3, 5.4, 5.5, 5.6_
 
-  - [ ] 5.10 Write property test for countdown arithmetic
+  - [x] 5.10 Write property test for countdown arithmetic
     - File: `frontend/src/lib/countdown.pbt.test.ts`
     - **Property 8: Countdown arithmetic**
     - **Validates: Requirements 5.2, 5.3, 5.4, 15.4**
 
-  - [ ] 5.11 Write unit tests for the countdown hook
+  - [x] 5.11 Write unit tests for the countdown hook
     - File: `frontend/src/lib/countdown.test.tsx`
     - Fake timers: `mm:ss` format, never below `00:00`, recompute when a new `remaining_seconds` arrives, exactly one `onZero` call at `00:00`, spoken label changes no more than once per 10 seconds
     - _Requirements: 15.3, 5.3, 5.4, 5.5, 5.6_
 
-- [ ] 6. Checkpoint - Ensure all tests pass
+- [x] 6. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. Implement state, real-time sync and the simulator hook
