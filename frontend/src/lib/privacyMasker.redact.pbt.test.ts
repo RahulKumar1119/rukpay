@@ -2,66 +2,9 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { PBT_RUNS } from "../test/pbt";
-import { maskAccount, maskPhone, maskUpi, redactObject } from "./privacyMasker";
-
-const REDACTED = "[REDACTED]";
-
-// The test keeps its own copy of the patterns, so a mistake in the module's
-// patterns cannot hide itself.
-const SECRET_KEY = /^(otp|pin|password|passcode|cvv)$/i;
-const MASKED = [/^XXXX-XXXX-\d{4}$/, /^\+91-X{6}\d{4}$/, /^[A-Za-z0-9]\*\*\*@[A-Za-z0-9.-]+$/];
-const RAW_UPI = /^[^\s@]+@[A-Za-z0-9.-]+$/;
-const RAW_PHONE = /^(\+91)?[6-9]\d{9}$/;
-const RAW_ACCOUNT = /^\d{9,18}$/;
-
-const compact = (s: string): string => s.replace(/[\s-]/g, "");
-const isMasked = (s: string): boolean => MASKED.some((re) => re.test(s));
-const looksUnmasked = (s: string): boolean =>
-  !isMasked(s) && (RAW_UPI.test(s) || RAW_PHONE.test(compact(s)) || RAW_ACCOUNT.test(compact(s)));
-
-// Generators for the values the redaction is meant to catch.
-const rawAccount = fc.stringMatching(/^[0-9]{9,18}$/);
-const rawPhone = fc
-  .tuple(fc.constantFrom("", "+91", "+91 ", "+91-"), fc.stringMatching(/^[6-9][0-9]{9}$/))
-  .map(([prefix, number]) => prefix + number);
-const rawUpi = fc
-  .tuple(fc.stringMatching(/^[A-Za-z0-9._-]{1,12}$/), fc.stringMatching(/^[A-Za-z0-9.-]{1,10}$/))
-  .map(([name, handle]) => `${name}@${handle}`);
-const maskedValue = fc.oneof(
-  fc.stringMatching(/^[0-9]{4,12}$/).map(maskAccount),
-  fc.stringMatching(/^[0-9]{4,12}$/).map(maskPhone),
-  rawUpi.map(maskUpi),
-);
-
-const secretKey = fc.constantFrom("otp", "OTP", "pin", "Pin", "password", "PassWord", "passcode", "PASSCODE", "cvv", "Cvv");
-const plainKey = fc.oneof(
-  fc.string({ unit: "grapheme-ascii", maxLength: 8 }),
-  fc.constantFrom("amount_inr", "token", "pinned", "otp_hint", "__proto__", "constructor", "toString"),
-);
-
-const leaf: fc.Arbitrary<unknown> = fc.oneof(
-  fc.integer(),
-  fc.double({ noNaN: true }),
-  fc.boolean(),
-  fc.constant(null),
-  fc.string({ unit: "grapheme-ascii" }),
-  rawAccount,
-  rawPhone,
-  rawUpi,
-  maskedValue,
-  fc.constant(REDACTED),
-);
-
-// Objects are built with fromEntries, which creates own properties even for a
-// key named "__proto__".
-const entry = (value: fc.Arbitrary<unknown>): fc.Arbitrary<[string, unknown]> =>
-  fc.tuple(fc.oneof({ weight: 3, arbitrary: plainKey }, { weight: 1, arbitrary: secretKey }), value);
-
-const tree = fc.letrec<{ value: unknown; array: unknown[]; object: Record<string, unknown> }>((tie) => ({
-  value: fc.oneof({ depthSize: "small", maxDepth: 4 }, leaf, tie("array"), tie("object")),
-  array: fc.array(tie("value"), { maxLength: 5 }),
-  object: fc.array(entry(tie("value")), { maxLength: 5 }).map((entries) => Object.fromEntries(entries)),
-})).value;
+import { isMasked, looksUnmasked, REDACTED, SECRET_KEY } from "../test/redactionOracle";
+import { secretKey, tree } from "../test/sensitiveArbitraries";
+import { redactObject } from "./privacyMasker";
 
 // ---- helpers that read a value without using the module under test ----
 

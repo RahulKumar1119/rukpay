@@ -3,46 +3,16 @@
  *
  * This file is the only place in `src/` that fakes the backend. Production code
  * never imports it, and no mock data source exists outside `src/test/`.
- *
- * The fixture type below mirrors the VaultView in design.md on purpose. Once
- * `lib/api.ts` exists (task 5.1) this file can import that type instead.
  */
 import { vi } from "vitest";
+
+import type { VaultMetadata, VaultState, VaultView } from "../lib/api";
 
 // ---------------------------------------------------------------------------
 // VaultView fixtures
 // ---------------------------------------------------------------------------
 
-export type FixtureVaultState =
-  | "INSTANT_PASS"
-  | "REALITY_CHECK"
-  | "LOCKED_15M"
-  | "GUARDIAN_APPROVED"
-  | "VETOED"
-  | "EXPIRED";
-
-export interface FixtureMetadata {
-  amount_inr?: number;
-  payer_account_masked?: string;
-  beneficiary_masked?: string;
-  upi_masked?: string;
-  phone_masked?: string;
-}
-
-export interface FixtureVaultView {
-  vault_id: string;
-  state: FixtureVaultState;
-  settled: boolean;
-  risk_score: number;
-  remaining_seconds: number;
-  reconfirm_required: boolean;
-  reason: string;
-  metadata: FixtureMetadata;
-  guardian_token?: string;
-  evidence_summary?: string;
-}
-
-export const ALL_FIXTURE_STATES: readonly FixtureVaultState[] = [
+export const ALL_STATES: readonly VaultState[] = [
   "INSTANT_PASS",
   "REALITY_CHECK",
   "LOCKED_15M",
@@ -51,7 +21,7 @@ export const ALL_FIXTURE_STATES: readonly FixtureVaultState[] = [
   "EXPIRED",
 ];
 
-const BASE_METADATA: FixtureMetadata = {
+const BASE_METADATA: VaultMetadata = {
   amount_inr: 85000,
   payer_account_masked: "XXXX-XXXX-4821",
   beneficiary_masked: "XXXX-XXXX-9034",
@@ -64,9 +34,9 @@ const BASE_METADATA: FixtureMetadata = {
  * on purpose.
  */
 export function makeView(
-  state: FixtureVaultState,
-  overrides: Partial<FixtureVaultView> = {},
-): FixtureVaultView {
+  state: VaultState,
+  overrides: Partial<VaultView> = {},
+): VaultView {
   const base = {
     vault_id: "vault-test-1",
     state,
@@ -76,9 +46,9 @@ export function makeView(
     reconfirm_required: false,
     reason: "",
     metadata: { ...BASE_METADATA },
-  } satisfies FixtureVaultView;
+  } satisfies VaultView;
 
-  let view: FixtureVaultView;
+  let view: VaultView;
   switch (state) {
     case "INSTANT_PASS":
       view = {
@@ -125,7 +95,7 @@ export function makeView(
 }
 
 /** One fixture per state, keyed by state name. */
-export function allStateViews(): Record<FixtureVaultState, FixtureVaultView> {
+export function allStateViews(): Record<VaultState, VaultView> {
   return {
     INSTANT_PASS: makeView("INSTANT_PASS"),
     REALITY_CHECK: makeView("REALITY_CHECK"),
@@ -147,6 +117,8 @@ export interface RecordedCall {
   body: unknown;
   /** Header names are lowercase. */
   headers: Record<string, string>;
+  /** The signal the caller passed to fetch, if any. */
+  signal: AbortSignal | undefined;
 }
 
 type QueuedResponse =
@@ -222,6 +194,7 @@ export function createFetchStub(): FetchStub {
         url,
         body: parseBody(init?.body),
         headers: Object.fromEntries(new Headers(init?.headers).entries()),
+        signal: init?.signal ?? undefined,
       });
 
       const next = queue.shift();
@@ -351,8 +324,9 @@ export function installEventSourceStub(): typeof StubEventSource {
   return StubEventSource;
 }
 
-/** Puts back the real globals. setup.ts runs this after every test. */
+/** Puts back the real globals and environment values. setup.ts runs this after every test. */
 export function restoreStubs(): void {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   StubEventSource.instances = [];
 }
