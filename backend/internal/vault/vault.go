@@ -46,17 +46,6 @@ const (
 // importing guardian.
 type EvidenceBuilder func(rec store.VaultRecord, vetoedAt time.Time) string
 
-// EvaluateRequest is the body of a payment evaluation: the five signals and the
-// optional masked identifiers. It has no field for an OTP, PIN or password, so
-// those cannot be stored, logged or published (Requirement 11.3).
-type EvaluateRequest struct {
-	risk.Signals
-	PayerAccountMasked string `json:"payer_account_masked,omitempty"`
-	BeneficiaryMasked  string `json:"beneficiary_masked,omitempty"`
-	UPIMasked          string `json:"upi_masked,omitempty"`
-	PhoneMasked        string `json:"phone_masked,omitempty"`
-}
-
 // Service runs the vault operations. Create it with New.
 type Service struct {
 	store    store.VaultStore

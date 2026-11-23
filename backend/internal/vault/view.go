@@ -23,16 +23,6 @@ type Observer interface {
 	Publish(View)
 }
 
-// Metadata holds the masked identifiers and the amount of a vault. It is the
-// only part of the payment that a View carries (Requirements 7.1, 8.9).
-type Metadata struct {
-	PayerAccountMasked string `json:"payer_account_masked,omitempty"`
-	BeneficiaryMasked  string `json:"beneficiary_masked,omitempty"`
-	UPIMasked          string `json:"upi_masked,omitempty"`
-	PhoneMasked        string `json:"phone_masked,omitempty"`
-	AmountINR          int64  `json:"amount_inr"`
-}
-
 // View is the safe projection of a vault record. It is the HTTP response body,
 // the SSE payload and the Vault_Event. It holds masked metadata only: no raw
 // identifier, OTP, PIN, password or key.
