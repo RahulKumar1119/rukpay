@@ -219,7 +219,7 @@ npm install
 npm run dev                   # http://localhost:5173
 ```
 
-The dev server uses port 5173 and fails if the port is taken, because the backend allows that origin by default. Other scripts: `npm run typecheck`, `npm run build` and `npm test`. `npm test` reports an error until the first test file exists.
+The dev server uses port 5173 and fails if the port is taken, because the backend allows that origin by default. Other scripts: `npm run typecheck`, `npm run build` and `npm test`. Each property test runs 1,000 generated inputs.
 
 ### Use the risk engine
 

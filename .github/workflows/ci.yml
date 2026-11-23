@@ -75,6 +75,4 @@ jobs:
       run: npm run build
 
     - name: Test
-      # --passWithNoTests lets CI pass until the first test file lands (task 3.2
-      # of the dual-screen-simulator spec). Remove the flag after that.
-      run: npm test -- --passWithNoTests
+      run: npm test
