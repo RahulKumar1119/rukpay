@@ -51,59 +51,59 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
     - **Property 13: The Explanation survives storage, state changes and the view** (storage half: any generated Explanation reads back equal from both adapters; the vault half is task 3.3)
     - **Validates: Requirements 2.3, 2.4, 2.5, 23.4**
 
-- [ ] 2. Make the scoring engine return contributions
+- [x] 2. Make the scoring engine return contributions
   - GitHub issue: #2 (https://github.com/RahulKumar1119/rukpay/issues/2)
-  - [ ] 2.1 Write the baseline explanation sentences in `backend/internal/risk/sentences.go`
+  - [x] 2.1 Write the baseline explanation sentences in `backend/internal/risk/sentences.go`
     - The file declares only `const` strings: `sentAmountMid`, `sentAmountHigh`, `sentAmountTop`, `sentAgeNew`, `sentAgeRecent`, `sentLateNight`, `sentUnknownCall`, `sentRetriesMid`, `sentRetriesHigh`, `sentBehaviourCap`, `sentScoreCap`, with the exact texts of the design's sentence table. Signal ids go in `explain.go`, not here
     - Each is one sentence of 1 to 20 words, starts with a capital letter, ends with one `.`, and holds no digit, rupee figure, `@` or Avoid_Word
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.7_
 
-  - [ ] 2.2 Implement `Assess` for the baseline signals in `backend/internal/risk/explain.go`
+  - [x] 2.2 Implement `Assess` for the baseline signals in `backend/internal/risk/explain.go`
     - `type Contribution = store.Contribution`; the Signal_Id constants for every id in the design; a `tier{min, points, sentence}` type and `amountTiers`; the shipped `agePoints` and `retryPoints` mapped to a sentence through a two-row lookup; late night 10 and unknown call 20 as fixed constants
     - `Input{Signals}` and `Assessment{Score, State, Baseline, Explanation}` (later groups add fields). `Assess` calls `Validate` and returns its `*ValidationError`, builds the five Contributions in the fixed order (`amount`, `beneficiary_age`, `late_night`, `unknown_call`, `rapid_retries`), appends one only when its points are above 0, returns a non-nil list (empty for a score of 0), and sets `State` with `MapState`
     - Do not edit `risk.go`. Pure function: no clock, I/O, randomness or map-order dependence
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 1.9, 1.10, 1.11, 9.1, 9.3, 9.4, 9.5, 9.10, 9.12, 9.13_
 
-  - [ ] 2.3 Add the independent references and generators for the risk tests
+  - [x] 2.3 Add the independent references and generators for the risk tests
     - Files: `risk/reference_test.go`, `risk/generators_test.go`
     - `reference_test.go`: a baseline model written from the tier tables of `behavioral-risk-engine` Requirement 2 (sharing no code, table or constant with `risk`), and `frozenEvaluate`, a frozen copy of the shipped `Evaluate`
     - `generators_test.go`: `genSignals` that reaches every tier boundary (1999/2000, 9999/10000, 24999/25000, age 23/24 and 71/72, retries 1/2/3, `MaxInt64` amount) and `genInput`, the one generator every `Assess` property test calls. Groups 8 and 12 widen `genInput` with history and recipients, so the property tests need no edit
     - _Requirements: 27.2, 27.4_
 
-  - [ ] 2.4 Write property test for the sum and the caps
+  - [x] 2.4 Write property test for the sum and the caps
     - File: `risk/pbt_explain_sum_test.go`
     - **Property 1: Contributions add up to the score and the caps are exact**
     - Write it against any `Assess` output so it also covers the cap lines once group 8 adds them (a `behaviour_cap` line only when the behavioural sum is above 25, a `score_cap` line only when the total is above 100)
     - **Validates: Requirements 1.1, 1.4, 1.5, 1.6, 1.10, 1.12, 2.8, 9.1, 9.2, 11.7**
 
-  - [ ] 2.5 Write property test for shape, order and uniqueness
+  - [x] 2.5 Write property test for shape, order and uniqueness
     - File: `risk/pbt_explain_shape_test.go`
     - **Property 2: Explanation shape, order and uniqueness** (includes the JSON key set and `[]` for an empty list)
     - **Validates: Requirements 1.2, 1.3, 1.7, 1.10, 2.9**
 
-  - [ ] 2.6 Write property test for determinism
+  - [x] 2.6 Write property test for determinism
     - File: `risk/pbt_explain_determinism_test.go`
     - **Property 3: Scoring is deterministic and does not touch its inputs**
     - **Validates: Requirements 1.8, 9.5, 9.10**
 
-  - [ ] 2.7 Write property test for the baseline
+  - [x] 2.7 Write property test for the baseline
     - File: `risk/pbt_baseline_test.go`
     - **Property 4: The baseline matches the shipped rules, and no history changes nothing** (compares with the reference model and with `frozenEvaluate`)
     - **Validates: Requirements 1.9, 9.3, 9.4, 9.12, 23.1**
 
-  - [ ] 2.8 Write property test for invalid signals
+  - [x] 2.8 Write property test for invalid signals
     - File: `risk/pbt_assess_invalid_test.go`
     - **Property 10: Invalid signals produce the validation error**
     - **Validates: Requirements 1.11, 9.13**
 
-  - [ ] 2.9 Write the sentence scan
+  - [x] 2.9 Write the sentence scan
     - File: `risk/sentences_test.go`
     - **Property 11: Every explanation sentence is calm**
     - Parse `sentences.go` with `go/parser`, check every string constant against Requirement 3 criteria 2 to 6 (word count, one terminal `.`, no Avoid_Word as a substring, no digit run over 4, no `@`, no masked format, no rupee figure or amount word, `redact.Text` returns it unchanged) and fail when no constant is found. Also check that two inputs with the same Signal_Id and tier give identical `reason` bytes
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
     - _Requirements: 27.7_
 
-  - [ ] 2.10 Write the import test for `risk`
+  - [x] 2.10 Write the import test for `risk`
     - File: `risk/imports_test.go`
     - No non-test file of `backend/internal/risk` imports `os`, `io`, `io/ioutil`, `io/fs`, `net` or any `net/` path, `os/exec`, `syscall`, `database/sql`, `log`, `log/slog`, any `github.com/aws/` package or a logger banned in `store/imports_test.go`. `store` is allowed. Fail when the directory has no Go file
     - _Requirements: 9.10, 27.12_

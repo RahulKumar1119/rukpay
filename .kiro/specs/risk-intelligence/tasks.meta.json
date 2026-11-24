@@ -1,0 +1,37 @@
+{
+  "pbtResults": {
+    "2.4 Write property test for the sum and the caps": {
+      "status": "passed",
+      "lastRunTimestamp": 1795502455004
+    },
+    "2.7 Write property test for the baseline": {
+      "status": "passed",
+      "lastRunTimestamp": 1795502455457
+    },
+    "2.8 Write property test for invalid signals": {
+      "status": "passed",
+      "lastRunTimestamp": 1795502455694
+    },
+    "2.9 Write the sentence scan": {
+      "status": "passed",
+      "lastRunTimestamp": 1795502456163
+    },
+    "2.5 Write property test for shape, order and uniqueness": {
+      "status": "passed",
+      "lastRunTimestamp": 1795502466129
+    },
+    "2.6 Write property test for determinism": {
+      "status": "passed",
+      "lastRunTimestamp": 1795502475792
+    }
+  },
+  "executionHistory": {
+    "2. Make the scoring engine return contributions": [
+      {
+        "executionId": "748dabe1-65a5-45b1-b917-53acdc98ed49",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795501566729
+      }
+    ]
+  }
+}
