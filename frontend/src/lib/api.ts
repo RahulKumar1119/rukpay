@@ -52,6 +52,16 @@ export interface VaultMetadata {
   phone_masked?: string;
 }
 
+/**
+ * One line of the score's explanation: a signal id, the whole points it added
+ * (negative for a cap), and one calm sentence. The browser shows `reason` and
+ * `points` as received and never shows `signal`.
+ */
+export interface ExplanationItem {
+  signal: string;
+  points: number;
+  reason: string;
+}
 export interface VaultView {
   vault_id: string;
   state: VaultState;
@@ -65,6 +75,11 @@ export interface VaultView {
   guardian_token?: string;
   /** Present only once the vault is VETOED. */
   evidence_summary?: string;
+  /**
+   * Why the score is what it is. Absent when the server omits it, which is not
+   * the same as an empty list: an empty list means nothing added any points.
+   */
+  explanation?: ExplanationItem[];
 }
 
 export type Answer = "YES" | "NO";

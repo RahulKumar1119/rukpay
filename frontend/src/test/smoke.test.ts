@@ -8,6 +8,7 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import tailwindConfig from "../../tailwind.config";
+import type { ExplanationItem } from "../lib/api";
 import {
   guardianPhone,
   HIGH_BUTTON,
@@ -125,6 +126,22 @@ describe("the source", () => {
     // ui.ts defines the red button. The two panels each have one Block & Report button.
     expect(files).toEqual(["../components/GuardianPhonePanel.tsx", "../components/UserPhonePanel.tsx", "../components/ui.ts"]);
   });
+  it("also reads the files of the explanation card and the guardian summary", () => {
+    const names = Object.keys(production);
+    for (const expected of ["../components/ExplanationCard.tsx", "../components/GuardianSummary.tsx", "../lib/explanation.ts"]) {
+      expect(names).toContain(expected);
+    }
+  });
+  it("puts no text into the page as HTML, because a reason from the server must stay plain text", () => {
+    const rawHtml = /\bdangerouslySetInnerHTML\b|\.\s*(innerHTML|outerHTML)\s*=[^=]|\binsertAdjacentHTML\b|\bdocument\s*\.\s*write\b/;
+    expect(rawHtml.test("<p dangerouslySetInnerHTML={{ __html: reason }} />")).toBe(true);
+    expect(rawHtml.test("el.innerHTML = reason;")).toBe(true);
+    expect(rawHtml.test("const reason = el.innerHTML;")).toBe(false);
+    const problems = Object.entries(production)
+      .filter(([, source]) => rawHtml.test(stripComments(source)))
+      .map(([name]) => name);
+    expect(problems).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -235,6 +252,20 @@ async function showState(fixture: ReturnType<typeof view>) {
   return app;
 }
 
+/**
+ * A full explanation: baseline lines, a behaviour cap and a score cap, in the order the backend sends them.
+ * The scene that shows it also shows the guardian's summary, because the vault is locked.
+ */
+const FULL_EXPLANATION: ExplanationItem[] = [
+  { signal: "amount", points: 35, reason: "This is a very large payment." },
+  { signal: "beneficiary_age", points: 25, reason: "The recipient was added less than a day ago." },
+  { signal: "late_night", points: 10, reason: "The payment is being made late at night." },
+  { signal: "unknown_call", points: 20, reason: "A call from someone you do not know is going on." },
+  { signal: "rapid_retries", points: 10, reason: "The payment has been tried several times in a row." },
+  { signal: "velocity", points: 15, reason: "A lot of payments were made in the last few minutes." },
+  { signal: "behaviour_cap", points: -5, reason: "The extra points from recent activity have an upper limit." },
+  { signal: "score_cap", points: -10, reason: "The total cannot go above its upper limit." },
+];
 const SCENES: [string, () => Promise<unknown>][] = [
   ["nothing chosen yet", async () => void renderApp()],
   ["INSTANT_PASS", () => showState(view("INSTANT_PASS"))],
@@ -306,6 +337,32 @@ const SCENES: [string, () => Promise<unknown>][] = [
       await showState(view("VETOED"));
       fireEvent.click(userPhone().getByRole("button", { name: "Copy summary" }));
       await userPhone().findAllByText(/Summary copied\.|copy it by hand/);
+    },
+  ],
+  [
+    "the explanation card with a full list, and the guardian's summary",
+    async () => {
+      await showState(locked({ risk_score: 95, explanation: FULL_EXPLANATION }));
+      const card = await userPhone().findByRole("region", { name: "Why RukPay looked closer" });
+      expect(card.querySelectorAll("li")).toHaveLength(FULL_EXPLANATION.length);
+      expect(guardianPhone().getByRole("region", { name: "What RukPay noticed" }).querySelectorAll("li")).toHaveLength(3);
+    },
+  ],
+  [
+    "the explanation card with an empty list",
+    async () => {
+      await showState(view("INSTANT_PASS", { risk_score: 0, explanation: [] }));
+      const card = await userPhone().findByRole("region", { name: "Why RukPay looked closer" });
+      expect(card.querySelectorAll("li")).toHaveLength(0);
+      expect(card).toHaveTextContent("Nothing about this payment asked for extra care.");
+    },
+  ],
+  [
+    "the explanation card with a full list after the guardian approved",
+    async () => {
+      await showState(view("GUARDIAN_APPROVED", { settled: true, risk_score: 95, explanation: FULL_EXPLANATION }));
+      await userPhone().findByRole("region", { name: "Why RukPay looked closer" });
+      expect(screen.queryByRole("region", { name: "What RukPay noticed" })).not.toBeInTheDocument();
     },
   ],
 ];

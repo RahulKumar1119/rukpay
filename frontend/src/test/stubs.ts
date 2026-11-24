@@ -31,7 +31,9 @@ const BASE_METADATA: VaultMetadata = {
  * Builds a VaultView the way the backend shapes it for the given state. The
  * guardian token appears only for LOCKED_15M and the evidence only for VETOED.
  * `overrides` wins over every default, so a test can build an off-contract view
- * on purpose.
+ * on purpose. A view has no `explanation` unless the test passes one, so the
+ * fixtures stay the views the server sent before the explanation existed.
+ * `makeView("LOCKED_15M", { explanation: [...] })` adds one.
  */
 export function makeView(
   state: VaultState,

@@ -137,7 +137,28 @@ export const COPY = {
   common: {
     working: "One moment…",
   },
+  /**
+   * The score's explanation. The reasons themselves come from the server and
+   * are not kept here. The points text is built by `pointsText` and
+   * `totalText` below from `point` and `points`.
+   */
+  explanation: {
+    heading: "Why RukPay looked closer",
+    guardianHeading: "What RukPay noticed",
+    empty: "Nothing about this payment asked for extra care.",
+    total: "Total",
+    point: "point",
+    points: "points",
+  },
 } as const;
+
+/**
+ * The groups of `COPY` that the risk-intelligence feature added. The tests of
+ * the new copy rules (no Avoid_Word, simulation wording, reading level) check
+ * these groups only, because the older strings predate the rules. A later group
+ * is added here when it is added to `COPY`.
+ */
+export const NEW_COPY_GROUPS: readonly (keyof typeof COPY)[] = ["explanation"];
 
 /** How many questions the reality check asks. */
 export const QUESTION_COUNT = COPY.realityCheck.questions.length;
@@ -147,6 +168,42 @@ export function questionProgress(current: number): string {
   return `Question ${current} of ${QUESTION_COUNT}`;
 }
 
+/** A whole number as plain digits. Exact for any integer a JSON number can hold, so a big value never turns into "1e+21". */
+function wholeText(n: number): string {
+  return Number.isInteger(n) ? BigInt(n).toString() : String(n);
+}
+/** "point" for one, "points" for any other number. */
+function pointWord(n: number): string {
+  return Math.abs(n) === 1 ? COPY.explanation.point : COPY.explanation.points;
+}
+/**
+ * The points of one Contribution as text: a sign, the whole number and the
+ * word, such as "+20 points", "-5 points" or "+1 point". The number is the one
+ * the server sent. Nothing is added up, rounded or changed. It lives here, with
+ * the other text builders, so `ALL_COPY` can include sample outputs.
+ */
+export function pointsText(points: number): string {
+  return `${points < 0 ? "-" : "+"}${wholeText(Math.abs(points))} ${pointWord(points)}`;
+}
+/** The last line of the explanation card: "Total: 90 points". `total` is the score the server sent. */
+export function totalText(total: number): string {
+  return `${COPY.explanation.total}: ${wholeText(total)} ${pointWord(total)}`;
+}
+/**
+ * A few outputs of the text builders this feature added. `ALL_COPY` holds them,
+ * so the calm-copy checks cover text that is built and not only text that is
+ * written out. A later text builder adds its samples here.
+ */
+export const NEW_COPY_HELPER_SAMPLES: readonly string[] = [
+  pointsText(20),
+  pointsText(-5),
+  pointsText(1),
+  pointsText(-1),
+  pointsText(0),
+  totalText(90),
+  totalText(1),
+  totalText(0),
+];
 function collect(value: unknown, out: string[]): void {
   if (typeof value === "string") {
     out.push(value);
@@ -161,6 +218,7 @@ function listAllCopy(): string[] {
   const out: string[] = [];
   collect(COPY, out);
   for (let n = 1; n <= QUESTION_COUNT; n++) out.push(questionProgress(n));
+  out.push(...NEW_COPY_HELPER_SAMPLES);
   return out;
 }
 

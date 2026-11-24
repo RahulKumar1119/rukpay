@@ -7,6 +7,7 @@ import { deriveUserScreen, type UserScreen } from "../lib/screens";
 import type { Simulator } from "../lib/useSimulator";
 import { CoolingOffVaultCard } from "./CoolingOffVaultCard";
 import { EvidenceCard } from "./EvidenceCard";
+import { ExplanationCard } from "./ExplanationCard";
 import { NoticeBlock } from "./NoticeBlock";
 import { PhoneFrame } from "./PhoneFrame";
 import { RealityCheckModal } from "./RealityCheckModal";
@@ -117,6 +118,9 @@ export function UserPhonePanel({ sim }: { sim: Simulator }) {
       )}
 
       {screen === "DONE" && <p className="text-lg font-semibold">{COPY.userPanel.doneMessage}</p>}
+
+      {/* Why the payment was scored this way. It stays through every state change and goes only with the vault. */}
+      {vault && <ExplanationCard view={vault} />}
 
       <RealityCheckModal
         open={screen === "CHECKING"}

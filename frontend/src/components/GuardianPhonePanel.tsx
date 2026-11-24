@@ -8,6 +8,7 @@ import { deriveGuardianScreen } from "../lib/screens";
 import type { Simulator } from "../lib/useSimulator";
 import { Countdown } from "./Countdown";
 import { EvidenceCard } from "./EvidenceCard";
+import { GuardianSummary } from "./GuardianSummary";
 import { NoticeBlock } from "./NoticeBlock";
 import { PhoneFrame } from "./PhoneFrame";
 import { StatusLine } from "./StatusLine";
@@ -86,6 +87,7 @@ function GuardianAlert({ sim, vault }: { sim: Simulator; vault: VaultView }) {
             <p className="text-lg tabular-nums">{payee}</p>
           </>
         )}
+        <GuardianSummary view={vault} />
       </div>
 
       <Countdown view={vault} onZero={() => undefined} />
