@@ -33,6 +33,13 @@ const (
 type Deps struct {
 	// Store holds the vaults. The default is a MemoryStore.
 	Store store.VaultStore
+	// History holds the payer's History_Events. A nil History turns history off:
+	// no snapshot is read and no event is written, so scoring and store calls are
+	// as they were before history existed. It is never guessed from Store, so a
+	// test that passes a store keeps its call counts. The one exception is a nil
+	// Store: the default MemoryStore then serves as the History too, unless
+	// History is set.
+	History store.HistoryStore
 	// Clock tells the time to the vault service and the guardian service. The
 	// default is time.Now. A fake clock must be the one the Store reads too.
 	Clock vault.Clock
@@ -59,6 +66,11 @@ type server struct {
 // 10.5). A "memory" driver builds a MemoryStore. Any other value goes to
 // store.NewFromEnv, which reads STORAGE_DRIVER, DYNAMODB_TABLE_NAME and
 // DYNAMODB_ENDPOINT, and rejects a driver it does not know.
+//
+// The one store serves as the vault store and as the history store, so both
+// entrypoints score every payment against the payer's recent payments
+// (Requirement 12). MemoryStore and DynamoDBStore both implement the two
+// interfaces.
 func Build(ctx context.Context, cfg Config) (http.Handler, error) {
 	var vs store.VaultStore
 	if cfg.StorageDriver == "memory" {
@@ -69,7 +81,9 @@ func Build(ctx context.Context, cfg Config) (http.Handler, error) {
 			return nil, err
 		}
 	}
-	return New(cfg, Deps{Store: vs}), nil
+	// A store that is no HistoryStore leaves History nil, which turns history off.
+	history, _ := vs.(store.HistoryStore)
+	return New(cfg, Deps{Store: vs, History: history}), nil
 }
 
 // New wires the services over deps and returns the handler: the router wrapped in
@@ -83,7 +97,13 @@ func New(cfg Config, deps Deps) http.Handler {
 // hub.
 func assemble(cfg Config, deps Deps) (http.Handler, *server) {
 	if deps.Store == nil {
-		deps.Store = store.NewMemoryStore()
+		// One MemoryStore holds the vaults and the history, so that a handler built
+		// with no dependencies still scores against the payer's recent payments.
+		mem := store.NewMemoryStore()
+		deps.Store = mem
+		if deps.History == nil {
+			deps.History = mem
+		}
 	}
 	if deps.Clock == nil {
 		deps.Clock = time.Now
@@ -101,6 +121,7 @@ func assemble(cfg Config, deps Deps) (http.Handler, *server) {
 	signer := guardian.NewSigner(cfg.HMACKey)
 	hub := guardian.NewHub()
 	vs := vault.New(deps.Store, deps.Clock, cfg.DemoMode, signer, hub)
+	vs.SetHistory(deps.History)
 	s := &server{
 		cfg:       cfg,
 		vault:     vs,

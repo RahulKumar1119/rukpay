@@ -53,6 +53,11 @@ type Service struct {
 	issuer   TokenIssuer
 	observer Observer
 	evidence EvidenceBuilder
+	// history holds the payer's History_Events. A nil history means the feature
+	// is off: Evaluate reads no snapshot and records no event, so a service
+	// built with New alone scores and writes exactly as it did before history
+	// existed.
+	history store.HistoryStore
 }
 
 // New returns a Service over s. A nil clock means time.Now. A nil issuer leaves
@@ -83,6 +88,15 @@ func (s *Service) SetEvidenceBuilder(b EvidenceBuilder) {
 		b = defaultEvidence
 	}
 	s.evidence = b
+}
+
+// SetHistory sets the store that holds the History_Events of the Demo_Payer. With
+// it, Evaluate scores a payment against the payer's recent payments and then
+// records the payment as one more event (Requirement 12). A nil store turns
+// history off, which is the state of a service that was never given one. Call it
+// once, before the service handles requests.
+func (s *Service) SetHistory(h store.HistoryStore) {
+	s.history = h
 }
 
 // defaultEvidence is the summary used until guardian supplies its own. It holds

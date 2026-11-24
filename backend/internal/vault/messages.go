@@ -57,6 +57,20 @@ const (
 	msgAnswerNotChecked = "this payment has not been checked independently yet"
 )
 
+// Phrases drawn from the behavioural lines of the Explanation (Requirement 3.8).
+// Each is a short clause of at most 8 words that continues the sentence "Because
+// of ...", is chosen by the Signal_Id alone and never by the points, and holds no
+// digit, name, amount or identifier. A test reads every constant whose name
+// starts msgPhrase and checks it against Requirement 3.10, so a phrase added here
+// is checked with no change to the test.
+const (
+	msgPhraseVelocity  = "several payments in a short time"
+	msgPhraseDaily     = "many payments in one day"
+	msgPhraseRepeat    = "repeated payments to the same recipient"
+	msgPhraseDeviation = "an amount well above your recent payments"
+	msgPhrasePattern   = "small payments followed by a large one"
+)
+
 // Thresholds for the signal phrases. They follow the first tier that earns
 // points in the risk engine.
 const (
@@ -89,6 +103,73 @@ func reasonFor(state store.VaultState, s risk.Signals) string {
 	return redact.Text(text)
 }
 
+// reasonForExplained returns the reason of a vault that starts in state, with the
+// behavioural lines of its Explanation named after the signals (Requirement
+// 3.8). For REALITY_CHECK and LOCKED_15M it takes the reasons that reasonFor
+// names, then adds one phrase for each Contribution of ex that has more than 0
+// points and a behavioural Signal_Id, in the order of ex, and joins them all in
+// the form of joinPlain: one, "a and b", or "a, b and c". A Contribution of the
+// baseline, of a cap, with 0 points, or with a Signal_Id that has no phrase adds
+// nothing (Requirement 3.10).
+//
+// It returns exactly what reasonFor returns when ex has no such Contribution,
+// and for every state that is not REALITY_CHECK or LOCKED_15M, whatever ex holds
+// (Requirements 3.9, 3.11). So a payment that passes at once, and every reason
+// written after creation, is as before.
+//
+// The fallback phrase is used only when the combined list is empty, and that
+// case is the one reasonFor already covers: a list with a phrase in it is never
+// empty.
+func reasonForExplained(state store.VaultState, s risk.Signals, ex []risk.Contribution) string {
+	if state != store.StateRealityCheck && state != store.StateLocked15M {
+		return reasonFor(state, s)
+	}
+	phrases := behaviourPhrases(ex)
+	if len(phrases) == 0 {
+		return reasonFor(state, s)
+	}
+
+	joined := joinPlain(append(signalReasonList(s), phrases...))
+	if state == store.StateRealityCheck {
+		return redact.Text(fmt.Sprintf(msgRealityCheckFmt, joined))
+	}
+	return redact.Text(fmt.Sprintf(msgLockedFmt, joined))
+}
+
+// behaviourPhrases returns the phrase of each behavioural Contribution of ex that
+// earned points, in the order of ex.
+func behaviourPhrases(ex []risk.Contribution) []string {
+	var phrases []string
+	for _, c := range ex {
+		if c.Points <= 0 {
+			continue
+		}
+		if phrase, ok := phraseFor(c.Signal); ok {
+			phrases = append(phrases, phrase)
+		}
+	}
+	return phrases
+}
+
+// phraseFor returns the summary phrase of a Signal_Id, and false for a Signal_Id
+// that has none. The choice rests on the Signal_Id alone. Every
+// Fraud_Pattern Contribution shares one phrase, whichever pattern it is.
+func phraseFor(signal string) (string, bool) {
+	switch {
+	case signal == risk.SignalVelocity:
+		return msgPhraseVelocity, true
+	case signal == risk.SignalDailyFrequency:
+		return msgPhraseDaily, true
+	case signal == risk.SignalRepeatAttempts:
+		return msgPhraseRepeat, true
+	case signal == risk.SignalAmountDeviation:
+		return msgPhraseDeviation, true
+	case strings.HasPrefix(signal, risk.SignalPatternPrefix):
+		return msgPhrasePattern, true
+	}
+	return "", false
+}
+
 // reasonForAnswers returns the protective-pause sentence for a payment locked
 // by the safety questions. It names the answers that caused the lock.
 func reasonForAnswers(a Answers) string {
@@ -108,8 +189,20 @@ func reasonForAnswers(a Answers) string {
 	return redact.Text(fmt.Sprintf(msgLockedFromCheckFmt, joinPlain(reasons)))
 }
 
-// signalReasons names the signals of s that are true, in plain words.
+// signalReasons names the signals of s that are true, in plain words, or the
+// fallback phrase when none is.
 func signalReasons(s risk.Signals) string {
+	reasons := signalReasonList(s)
+	if len(reasons) == 0 {
+		return msgReasonFallback
+	}
+	return joinPlain(reasons)
+}
+
+// signalReasonList lists the reason phrases of the signals of s that are true,
+// in the fixed order amount, recipient age, late hour, call, retries. It is
+// empty when no signal is true.
+func signalReasonList(s risk.Signals) []string {
 	var reasons []string
 	if s.AmountINR >= phraseLargeAmountINR {
 		reasons = append(reasons, msgReasonLargeAmount)
@@ -129,10 +222,7 @@ func signalReasons(s risk.Signals) string {
 	if s.RapidRetryCount >= phraseRetryCount {
 		reasons = append(reasons, msgReasonQuickRetries)
 	}
-	if len(reasons) == 0 {
-		return msgReasonFallback
-	}
-	return joinPlain(reasons)
+	return reasons
 }
 
 // joinPlain joins items as "a", "a and b" or "a, b and c".
