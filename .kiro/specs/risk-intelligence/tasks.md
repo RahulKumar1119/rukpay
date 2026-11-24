@@ -108,35 +108,36 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
     - No non-test file of `backend/internal/risk` imports `os`, `io`, `io/ioutil`, `io/fs`, `net` or any `net/` path, `os/exec`, `syscall`, `database/sql`, `log`, `log/slog`, any `github.com/aws/` package or a logger banned in `store/imports_test.go`. `store` is allowed. Fail when the directory has no Go file
     - _Requirements: 9.10, 27.12_
 
-- [ ] 3. Return the Explanation from the vault service and the API
+- [x] 3. Return the Explanation from the vault service and the API
   - GitHub issue: #2 (https://github.com/RahulKumar1119/rukpay/issues/2)
-  - [ ] 3.1 Add `Explanation` to `vault.View` in `backend/internal/vault/view.go`
+  - [x] 3.1 Add `Explanation` to `vault.View` in `backend/internal/vault/view.go`
     - `Explanation *[]risk.Contribution` with `json:"explanation,omitempty"`. `view()` gives a nil pointer for a nil record slice (key omitted) and a pointer to a copy that is never nil for a non-nil slice, so an empty Explanation is written as `[]`
     - Keep every existing View field unchanged. `apply`, `load` and the lazy-expiry write copy the whole record, so the Explanation and the score never change after creation
     - _Requirements: 2.1, 2.2, 2.5, 2.6, 2.7, 2.8, 2.9_
 
-  - [ ] 3.2 Move `Evaluate` into `backend/internal/vault/evaluate.go` and score with `Assess`
+  - [x] 3.2 Move `Evaluate` into `backend/internal/vault/evaluate.go` and score with `Assess`
     - Keep the exported signature. Order: `store.ValidateMasked`, then `risk.Assess` (its `*ValidationError` is returned as before), then read the clock once, build the record with `Explanation = a.Explanation`, then one `Create`. The `Reason` still comes from `reasonFor`, so it is byte for byte as before
     - Return the shipped errors for a rejected request or a failed write, with no View and no Explanation. Remove the old body from `vault.go`
     - _Requirements: 2.1, 2.3, 2.10, 2.11, 2.12, 3.9, 3.11, 9.3, 23.1, 23.3_
 
-  - [ ] 3.3 Write property test for the stored Explanation through state changes
+  - [x] 3.3 Write property test for the stored Explanation through state changes
     - File: `vault/pbt_explain_test.go`
     - **Property 13: The Explanation survives storage, state changes and the view** (vault half: after any sequence of reality check, approve, veto, fast-forward, lazy expiry and reconfirm the Explanation and score are unchanged; the view key is absent for nil, `[]` for empty and the stored list otherwise; the viewed points add up to `risk_score`)
     - **Validates: Requirements 2.2, 2.5, 2.7, 2.8**
 
-  - [ ] 3.4 Write the JSON contract test for `explanation` and update the existing key-set tests
+  - [x] 3.4 Write the JSON contract test for `explanation` and update the existing key-set tests
     - File: `httpapi/contract_json_test.go` (extended in task 16.9)
     - Pin the exact key set of a Contribution (`signal`, `points`, `reason`) and the optional `explanation` key of a View; proves the key is omitted for an old record
     - Run the existing tests. Where a test pins the exact JSON key set of a View or an evaluate response, add the one key `explanation` and change nothing else (Requirement 23.7). List each such edit in the commit message
+    - **Done. No existing test pins the key set of a View or an evaluate response, so no key was added to one. One other existing assertion changed (conflict C-10, the same kind of compile-time edit as C-9; it still needs the user's confirmation):** `vault/pbt_expiry_test.go` compared two Views with `again != got`. `View` now holds a pointer (`Explanation *[]risk.Contribution`), so `!=` compares pointer identity and two reads of the same vault never match. The line is now `!reflect.DeepEqual(again, got)` and no other assertion changed. Later tasks that compare whole Views in tests must use `reflect.DeepEqual` too
     - _Requirements: 2.6, 2.9, 23.7, 27.11_
 
-  - [ ] 3.5 Write router example tests for the Explanation
+  - [x] 3.5 Write router example tests for the Explanation
     - File: `httpapi/explanation_test.go`
     - The ₹85,000 late-night call payment returns `explanation` in the evaluate response, in `GET /api/v1/vault/{id}` and in the first stream event, equal in order and values. A request body that holds an `explanation` field is ignored. An old record stored with no Explanation reads back with no `explanation` key and every other field unchanged. A rejected request returns the shipped error with no `explanation`
     - _Requirements: 2.1, 2.2, 2.5, 2.6, 2.11, 2.12_
 
-- [ ] 4. Checkpoint - Backend for #2
+- [x] 4. Checkpoint - Backend for #2
   - Run in `backend/`: `gofmt -l .` (no output), `go vet ./...`, `go test -race -count=1 ./... -rapid.checks=1000`
   - Ensure all tests pass, ask the user if questions arise.
 
