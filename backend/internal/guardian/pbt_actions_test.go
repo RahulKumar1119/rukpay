@@ -3,6 +3,7 @@ package guardian
 import (
 	"context"
 	"errors"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -54,7 +55,7 @@ func TestApprovalNeedsAConfirmedSecondTap(t *testing.T) {
 			if res.Status != StatusConfirmationRequired || res.View.State != store.StateLocked15M {
 				rt.Fatalf("unconfirmed APPROVE = %+v, want CONFIRMATION_REQUIRED on a LOCKED_15M vault", res)
 			}
-			if rec != before {
+			if !reflect.DeepEqual(rec, before) {
 				rt.Fatalf("unconfirmed APPROVE changed the record: %+v -> %+v", before, rec)
 			}
 			if _, writes, _ := e.cs.snapshot(); writes != writesBefore {
@@ -92,7 +93,7 @@ func TestUnknownActionIsRefused(t *testing.T) {
 		if !errors.Is(err, ErrInvalidAction) {
 			rt.Fatalf("Act(%q) = %v, want ErrInvalidAction", name, err)
 		}
-		if after := e.record(rt, v.ID); after != before {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 			rt.Fatalf("Act(%q) changed the record", name)
 		}
 		if _, writes, _ := e.cs.snapshot(); writes != writesBefore {
@@ -192,7 +193,7 @@ func TestActionsOnNonLockedVaultsAreRefused(t *testing.T) {
 		if !errors.As(err, &conflict) || conflict.Current.State != state {
 			rt.Fatalf("%+v on a %s vault = %v, want a conflict carrying that state", action, state, err)
 		}
-		if after := e.record(rt, v.ID); after != before {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 			rt.Fatalf("%+v on a %s vault changed the record: %+v -> %+v", action, state, before, after)
 		}
 		if _, writes, _ := e.cs.snapshot(); writes != writesBefore {

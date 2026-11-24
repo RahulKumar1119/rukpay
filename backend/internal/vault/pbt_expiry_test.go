@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -132,7 +133,7 @@ func TestReconfirmSettlesOnlyAnExpiredVault(t *testing.T) {
 			if !errors.As(err, &conflict) || conflict.Current.State != state {
 				rt.Fatalf("Reconfirm on a %s vault = %v, want a conflict carrying that state", state, err)
 			}
-			if after != before {
+			if !reflect.DeepEqual(after, before) {
 				rt.Fatalf("Reconfirm on a %s vault changed the record: %+v -> %+v", state, before, after)
 			}
 			return

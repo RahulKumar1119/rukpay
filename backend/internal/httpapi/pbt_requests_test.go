@@ -3,6 +3,7 @@ package httpapi
 import (
 	"math"
 	"net/http"
+	"reflect"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -237,7 +238,7 @@ func TestRealityCheckBodyNeedsExactlyOneOfAnswersOrReconfirm(t *testing.T) {
 			if res.status != http.StatusBadRequest || res.errorCode(rt) != "invalid_request" {
 				rt.Fatalf("%s on a %s vault = %d %s, want a 400 invalid_request", shape.name, state, res.status, res.body)
 			}
-			if after := e.record(rt, v.ID); after != before {
+			if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 				rt.Fatalf("%s changed the vault: %+v -> %+v", shape.name, before, after)
 			}
 			if _, writes := e.cs.snapshot(); writes != writesBefore {
@@ -256,7 +257,7 @@ func TestRealityCheckBodyNeedsExactlyOneOfAnswersOrReconfirm(t *testing.T) {
 			rt.Fatalf("%s on a %s vault = %d %s, want %d", shape.name, state, res.status, res.body, want)
 		}
 		if !appliesHere {
-			if after := e.record(rt, v.ID); after != before {
+			if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 				rt.Fatalf("%s on a %s vault changed it: %+v -> %+v", shape.name, state, before, after)
 			}
 		}

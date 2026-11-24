@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -209,7 +210,7 @@ func TestTamperedTokenMakesNoStoreCall(t *testing.T) {
 		if calls != callsBefore || updateIf != 0 {
 			rt.Fatalf("Act with a %s token called the store (%d calls, %d UpdateIf)", kind, calls-callsBefore, updateIf)
 		}
-		if after := e.record(rt, v.ID); after != before {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 			rt.Fatalf("Act with a %s token changed the record: %+v -> %+v", kind, before, after)
 		}
 	})

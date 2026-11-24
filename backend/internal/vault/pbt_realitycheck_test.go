@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -135,7 +136,7 @@ func TestRealityCheckRejectsInvalidAnswers(t *testing.T) {
 		if !errors.Is(err, ErrInvalidAnswers) {
 			rt.Fatalf("RealityCheck(%+v) = %v, want ErrInvalidAnswers", a, err)
 		}
-		if after := e.record(rt, v.ID); after != before {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 			rt.Fatalf("a rejected check changed the record: %+v -> %+v", before, after)
 		}
 		if e.cs.writeCount() != writes {
@@ -175,7 +176,7 @@ func TestRealityCheckConflictsOutsideRealityCheck(t *testing.T) {
 		if conflict.Current.State != state || conflict.Current.ID != v.ID {
 			rt.Fatalf("conflict carries state %s id %s, want %s %s", conflict.Current.State, conflict.Current.ID, state, v.ID)
 		}
-		if after := e.record(rt, v.ID); after != before {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 			rt.Fatalf("a conflicting check changed the record: %+v -> %+v", before, after)
 		}
 		if e.cs.writeCount() != writes {
@@ -207,7 +208,7 @@ func TestRealityCheckRejectsASecondSubmission(t *testing.T) {
 		if !errors.As(err, &conflict) {
 			rt.Fatalf("second check %+v = %v, want *ConflictError", second, err)
 		}
-		if after := e.record(rt, v.ID); after != before {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 			rt.Fatalf("a second check changed the record: %+v -> %+v", before, after)
 		}
 	})

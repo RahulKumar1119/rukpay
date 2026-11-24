@@ -13,9 +13,9 @@ var _ VaultStore = (*MemoryStore)(nil)
 // the write lock, so the state check and the replacement in UpdateIf happen
 // under one lock and exactly one concurrent caller wins (Requirement 8.4).
 //
-// Records are stored and returned by value. VaultRecord holds only strings,
-// integers and time.Time values, so a struct copy is a deep copy and callers
-// cannot reach stored data through a returned record (Requirement 8.3).
+// Records are stored and returned as copies made with VaultRecord.clone. The
+// record holds an Explanation slice, so a plain struct copy would share it and
+// a caller could reach stored data through a returned record (Requirement 8.3).
 //
 // Expired records are hidden from Get and UpdateIf but are not removed from
 // the map: there is no sweeper, and a Create for the id of an expired record
@@ -65,7 +65,7 @@ func (s *MemoryStore) Create(ctx context.Context, rec VaultRecord) error {
 	if _, ok := s.data[rec.ID]; ok {
 		return &opError{Op: "create", ID: rec.ID, Err: ErrAlreadyExists}
 	}
-	s.data[rec.ID] = rec
+	s.data[rec.ID] = rec.clone()
 	return nil
 }
 
@@ -83,7 +83,7 @@ func (s *MemoryStore) Get(ctx context.Context, id string) (VaultRecord, error) {
 	if !ok || s.isExpired(rec) {
 		return VaultRecord{}, &opError{Op: "get", ID: id, Err: ErrNotFound}
 	}
-	return rec, nil
+	return rec.clone(), nil
 }
 
 // UpdateIf replaces the record stored under id with a copy of next when the
@@ -110,7 +110,7 @@ func (s *MemoryStore) UpdateIf(ctx context.Context, id string, expected VaultSta
 	if cur.State != expected {
 		return &opError{Op: "update", ID: id, Err: ErrConditionFailed}
 	}
-	s.data[id] = next
+	s.data[id] = next.clone()
 	return nil
 }
 

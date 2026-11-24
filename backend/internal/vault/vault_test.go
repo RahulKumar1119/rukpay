@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -207,7 +208,7 @@ func TestVaultCancelledContextWritesNothing(t *testing.T) {
 		if got := e.cs.writeCount(); got != writes {
 			t.Errorf("cancelled calls wrote %d records", got-writes)
 		}
-		if after := e.record(t, locked.ID); after != before {
+		if after := e.record(t, locked.ID); !reflect.DeepEqual(after, before) {
 			t.Errorf("record changed: %+v -> %+v", before, after)
 		}
 	})
@@ -284,7 +285,7 @@ func TestVaultRealityCheckRejectsASettledVault(t *testing.T) {
 	if conflict.Current.State != store.StateRealityCheck || !conflict.Current.Settled {
 		t.Errorf("conflict carries %+v, want the settled REALITY_CHECK view", conflict.Current)
 	}
-	if after := e.record(t, rc.ID); after != before {
+	if after := e.record(t, rc.ID); !reflect.DeepEqual(after, before) {
 		t.Errorf("record changed: %+v -> %+v", before, after)
 	}
 }
@@ -321,7 +322,7 @@ func TestVaultFastForwardNeedsDemoMode(t *testing.T) {
 	if !errors.Is(err, ErrNotDemoMode) {
 		t.Fatalf("FastForward with demo off = %v, want ErrNotDemoMode", err)
 	}
-	if after := e.record(t, v.ID); after != before {
+	if after := e.record(t, v.ID); !reflect.DeepEqual(after, before) {
 		t.Errorf("record changed: %+v -> %+v", before, after)
 	}
 }

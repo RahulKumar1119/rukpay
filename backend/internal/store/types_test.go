@@ -50,6 +50,7 @@ func TestVaultRecordAttributeNames(t *testing.T) {
 		"settled",
 		"reason",
 		"evidence",
+		"explanation",
 	}
 
 	typ := reflect.TypeOf(VaultRecord{})

@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -65,7 +66,7 @@ func TestFastForwardOnlyShortensTheLock(t *testing.T) {
 
 			if rec.LockDeadline <= now+3 {
 				// Already within three seconds: nothing is written.
-				if after != rec || e.cs.writeCount() != writes {
+				if !reflect.DeepEqual(after, rec) || e.cs.writeCount() != writes {
 					rt.Fatalf("FastForward #%d changed a deadline that was already within 3 seconds", i)
 				}
 			}
@@ -101,7 +102,7 @@ func TestFastForwardConflictsOutsideLockedState(t *testing.T) {
 		if !errors.As(err, &conflict) || conflict.Current.State != state {
 			rt.Fatalf("FastForward on a %s vault = %v, want a conflict carrying that state", state, err)
 		}
-		if after := e.record(rt, v.ID); after != before || e.cs.writeCount() != writes {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) || e.cs.writeCount() != writes {
 			rt.Fatalf("FastForward on a %s vault changed the store", state)
 		}
 	})
@@ -131,7 +132,7 @@ func TestFastForwardIsRefusedWithoutDemoMode(t *testing.T) {
 		if !errors.Is(err, ErrNotDemoMode) {
 			rt.Fatalf("FastForward with demo off on a %s vault = %v, want ErrNotDemoMode", state, err)
 		}
-		if after := e.record(rt, v.ID); after != before || e.cs.writeCount() != writes {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) || e.cs.writeCount() != writes {
 			rt.Fatalf("FastForward with demo off changed the store")
 		}
 	})

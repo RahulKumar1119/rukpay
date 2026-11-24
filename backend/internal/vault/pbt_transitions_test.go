@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -109,7 +110,7 @@ func TestApplyRejectsPairsOutsideTheTable(t *testing.T) {
 		if !errors.Is(err, ErrInvalidTransition) {
 			rt.Fatalf("apply(%s -> %s) = %v, want ErrInvalidTransition", from, to, err)
 		}
-		if after := e.record(rt, v.ID); after != before {
+		if after := e.record(rt, v.ID); !reflect.DeepEqual(after, before) {
 			rt.Fatalf("apply(%s -> %s) changed the record: %+v -> %+v", from, to, before, after)
 		}
 		if got := e.cs.writeCount(); got != writes {
@@ -150,7 +151,7 @@ func TestApplyPerformsEveryPermittedTransition(t *testing.T) {
 			rt.Fatalf("apply(%s -> %s) returned state %s version %d, want %s version %d",
 				from, to, got.State, got.Version, to, before.Version+1)
 		}
-		if stored := e.record(rt, v.ID); stored != got {
+		if stored := e.record(rt, v.ID); !reflect.DeepEqual(stored, got) {
 			rt.Fatalf("stored record %+v differs from the returned record %+v", stored, got)
 		}
 	})
