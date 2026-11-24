@@ -79,6 +79,13 @@
         "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
         "timestamp": 1795517203090
       }
+    ],
+    "8. Score behaviour with capped extra points": [
+      {
+        "executionId": "aaae86f6-17e7-46d3-9707-6cfd9364bfea",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795519495524
+      }
     ]
   }
 }

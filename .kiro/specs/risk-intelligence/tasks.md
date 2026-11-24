@@ -230,55 +230,58 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
     - Round trip with an empty ref and `MaxInt64` amount; 50 concurrent writes with equal times and different ids all survive and a limit-100 read returns all 50; expiry boundary (equal to now is kept, 0 never expires); a cancelled context sends no request; unknown fake shapes stop the test with a clear error; one `Query`, no `IndexName`
     - _Requirements: 13.5, 13.8, 13.10, 13.13, 27.14_
 
-- [ ] 8. Score behaviour with capped extra points
+- [x] 8. Score behaviour with capped extra points
   - GitHub issue: #4 (https://github.com/RahulKumar1119/rukpay/issues/4)
-  - [ ] 8.1 Add the window signals in `backend/internal/risk/behaviour.go`
+  - [x] 8.1 Add the window signals in `backend/internal/risk/behaviour.go`
     - Extend `explain.go`: constants `BehaviourCap = 25`, `VelocityWindow = 600`, `FrequencyWindow = 86_400`, `RepeatWindow = 3_600`; `HistoryEvent{At, AmountINR, BeneficiaryRef}`; `Input` gains `Now`, `History`, `BeneficiaryRef`; `Assessment` gains `Behaviour`
     - `within(at, now, w)` (uint64 subtraction after the `at > now` test, an event exactly `w` seconds old is outside), tier tables `velocityTiers`, `dailyTiers`, `repeatTiers` (with their sentences added to `sentences.go`). Repeat counts only a non-empty, exactly equal ref
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 3.1, 3.7_
 
-  - [ ] 8.2 Implement amount deviation in `behaviour.go`
+  - [x] 8.2 Implement amount deviation in `behaviour.go`
     - `deviationPoints(amount, history)` with `DeviationMinEvents = 5` and `DeviationMinAmount = 2000`, using `amount/10 >= largest` and `amount/3 >= largest` so no multiplication can overflow; add the two deviation sentences to `sentences.go`
+    - **Done, with one naming difference (design section "Amount deviation, without overflow"):** the function is `appendDeviation` over a `deviationTiers` table (`factor 10` gives 15 points, `factor 3` gives 10), so that the sentence of a tier travels with its row like the other tier tables. The arithmetic is the one the design gives (`amount/factor >= largest`). A snapshot whose events have no amount above 0 earns nothing, as in the design's `largest <= 0` case
     - _Requirements: 11.1, 11.2, 9.11, 3.1, 3.7_
 
-  - [ ] 8.3 Implement the Pattern_Table in `backend/internal/risk/patterns.go`
+  - [x] 8.3 Implement the Pattern_Table in `backend/internal/risk/patterns.go`
     - `FraudPattern{ID, WindowSeconds, MinSmallCount, SmallMax, LargeMin, Points, Reason}`, `patternTable` with `test_then_large` (3600 s, 3 small, 1000, 10000, 15 points, one calm `Reason`), `Patterns()` returning a copy, and one generic scorer that awards each entry at most once under `pattern_<id>`
     - _Requirements: 11.3, 11.4, 11.5, 11.6, 11.8, 3.7_
 
-  - [ ] 8.4 Finish the `Assess` pipeline with the behaviour cap and the score cap
+  - [x] 8.4 Finish the `Assess` pipeline with the behaviour cap and the score cap
     - In `explain.go`: steps 6 to 11 and 13 of the design's table. Sum the behavioural points, add a `behaviour_cap` Contribution (`25 - sum`) only when the sum is above 25, then a `score_cap` Contribution (`100 - total`) only when baseline + behaviour is above 100. `Score = min(100, baseline + min(25, behaviour))`, `State = MapState(score)`
     - _Requirements: 1.5, 1.6, 1.12, 9.1, 9.2, 9.12, 10.8, 11.7_
 
-  - [ ] 8.5 Widen the risk test generators and add the behaviour reference models
+  - [x] 8.5 Widen the risk test generators and add the behaviour reference models
     - Files: `risk/generators_test.go`, `risk/reference_behaviour_test.go`
     - `genInput` gains a History_Snapshot of 0 to 100 events with ages at 599/600/601, 3599/3600/3601, 86399/86400 and 604800 seconds and in the future, repeated and empty refs, behavioural sums below, at and above 25, totals above 100, and `MaxInt64` amounts. Add an equal-time reordering case for Property 3
     - `reference_behaviour_test.go`: independent models for windows and tiers, deviation (with `math/big`) and patterns that share no code or constant with `risk`
     - Run the Property 1 to 4 and 10 tests unchanged; they must still pass
+    - **Done. No existing `Test...` function was edited.** `genInput`, `genInvalidInput`, `cloneInput` and `baselineOnly` were widened in `generators_test.go`, which also gained the history generators and `genInputFor`. The equal-time reordering case of Property 3 is a new test, `pbt_assess_order_test.go`, because the existing Property 3 test may not change. Three more new test files: `pbt_assess_model_test.go` (Property 1 against the full model, with every reason), `behaviour_test.go` (example tests) and `purity_test.go` (no `time` or random package in the engine)
     - _Requirements: 27.2, 27.3_
 
-  - [ ] 8.6 Write property test for window counts
+  - [x] 8.6 Write property test for window counts
     - File: `risk/pbt_windows_test.go`
+    - **Done, under another file name:** Go reads a file name that ends in `_windows_test.go` as a Windows-only file, so `pbt_windows_test.go` would never be built on Linux or Lambda, and its tests would never run. The file is `risk/pbt_window_counts_test.go`. Later tasks must not use `_windows`, `_linux`, `_darwin` or another GOOS or GOARCH word as the last part of a file name
     - **Property 6: Window counts and tiers** (also: points never fall as events are added one at a time, Requirement 27.6)
     - **Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8**
     - _Requirements: 27.6_
 
-  - [ ] 8.7 Write property test for amount deviation
+  - [x] 8.7 Write property test for amount deviation
     - File: `risk/pbt_deviation_test.go`
     - **Property 7: Amount deviation is exact for every int64**
     - **Validates: Requirements 9.11, 11.1, 11.2**
 
-  - [ ] 8.8 Write property test for fraud patterns
+  - [x] 8.8 Write property test for fraud patterns
     - File: `risk/pbt_patterns_test.go`
     - **Property 8: Fraud patterns are table-driven and score once** (the test appends a row to `patternTable`, restores it in `t.Cleanup`, and checks that the row scores with no scoring change)
     - **Validates: Requirements 11.3, 11.4, 11.5, 11.6, 11.8**
 
-  - [ ] 8.9 Write property test for the guarantees
+  - [x] 8.9 Write property test for the guarantees
     - File: `risk/pbt_assess_guarantees_test.go`
     - **Property 5: Lock, pass and preset guarantees** (baseline of 75 or more locks, baseline of 0 gives at most 35 and INSTANT_PASS, the three Preset signal sets give INSTANT_PASS, REALITY_CHECK and LOCKED_15M, and the three story signal sets score at least 90, 65 and 40)
     - **Validates: Requirements 7.2, 7.3, 7.4, 7.9, 9.6, 9.7, 9.8, 9.9**
     - _Requirements: 27.5_
 
-  - [ ] 8.10 Extend the sentence scan to the Pattern_Table
+  - [x] 8.10 Extend the sentence scan to the Pattern_Table
     - File: `risk/sentences_test.go`
     - Also check every `Patterns()` entry `Reason` against Requirement 3 criteria 2 to 6, and that each `ID` is unique lower-case snake case. Fail when the table is empty
     - **Property 11: Every explanation sentence is calm**
