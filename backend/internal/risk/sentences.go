@@ -33,6 +33,30 @@ const (
 	// sentRetriesHigh is the quick retries sentence for 10 points.
 	sentRetriesHigh = "The payment has been tried several times in a row."
 
+	// sentVelocityLow is the quick payments sentence for 5 points.
+	sentVelocityLow = "Several payments were made in the last few minutes."
+	// sentVelocityMid is the quick payments sentence for 10 points.
+	sentVelocityMid = "Many payments were made in the last few minutes."
+	// sentVelocityHigh is the quick payments sentence for 15 points.
+	sentVelocityHigh = "A lot of payments were made in the last few minutes."
+
+	// sentDailyLow is the payments in a day sentence for 5 points.
+	sentDailyLow = "There have been quite a few payments in the last day."
+	// sentDailyHigh is the payments in a day sentence for 10 points.
+	sentDailyHigh = "There have been a lot of payments in the last day."
+
+	// sentRepeatLow is the same recipient sentence for 5 points.
+	sentRepeatLow = "A few payments went to this same recipient in the last hour."
+	// sentRepeatHigh is the same recipient sentence for 10 points.
+	sentRepeatHigh = "Many payments went to this same recipient in the last hour."
+
+	// sentDeviationMid is the sentence for a payment at least 3 times the
+	// largest recent payment, which earns 10 points.
+	sentDeviationMid = "This payment is much larger than your recent ones."
+	// sentDeviationHigh is the sentence for a payment at least 10 times the
+	// largest recent payment, which earns 15 points.
+	sentDeviationHigh = "This payment is far larger than your recent ones."
+
 	// sentBehaviourCap is the sentence of the behaviour cap line, whatever its
 	// points.
 	sentBehaviourCap = "The extra points from recent activity have an upper limit."

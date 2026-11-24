@@ -336,3 +336,88 @@ func helper() {}
 		t.Errorf("problems = %q, want %q", problems, want)
 	}
 }
+
+// patternIDShape is the shape of a Fraud_Pattern id: lower-case snake case, one
+// or more words of lower-case letters and digits joined by single underscores,
+// starting with a letter.
+var patternIDShape = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
+
+// patternTableProblems returns one text for every way that the table breaks the
+// rules of Requirement 11 criterion 3 and Requirement 3: a reason that is not
+// calm, an id that is not lower-case snake case, an id that an earlier row
+// already uses, and an empty table. An empty result means the table is clean. It
+// takes the table as an argument, so a test can run it on a table that is not.
+func patternTableProblems(table []FraudPattern) []string {
+	if len(table) == 0 {
+		return []string{"the Pattern_Table is empty, so the check would pass with nothing to check"}
+	}
+	var out []string
+	seen := make(map[string]bool, len(table))
+	for i, p := range table {
+		if !patternIDShape.MatchString(p.ID) {
+			out = append(out, fmt.Sprintf("row %d has the id %q, want lower-case snake case", i, p.ID))
+		}
+		if seen[p.ID] {
+			out = append(out, fmt.Sprintf("row %d repeats the id %q", i, p.ID))
+		}
+		seen[p.ID] = true
+
+		for _, v := range sentenceViolations(p.Reason) {
+			out = append(out, fmt.Sprintf("row %d (%s) reason %q %s", i, p.ID, p.Reason, v))
+		}
+		// The sentences of sentences.go hold no digit at all. A pattern reason
+		// follows the same house rule.
+		if strings.ContainsAny(p.Reason, "0123456789") {
+			out = append(out, fmt.Sprintf("row %d (%s) reason %q holds a digit", i, p.ID, p.Reason))
+		}
+	}
+	return out
+}
+
+// Feature: risk-intelligence, Property 11: Every explanation sentence is calm
+//
+// Every Fraud_Pattern reason of the Pattern_Table meets Requirement 3 criteria 2
+// to 6, every id is unique lower-case snake case, and the test fails when the
+// table is empty. The reasons live in the table and not in sentences.go
+// (Requirement 3.7), so this is the second half of the sentence scan.
+//
+// **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
+func TestEveryFraudPatternReasonIsCalm(t *testing.T) {
+	for _, problem := range patternTableProblems(Patterns()) {
+		t.Error(problem)
+	}
+}
+
+// TestPatternTableCheckRejectsBadTables guards the check above: each table below
+// breaks one rule and must be reported, and a clean table must not be.
+func TestPatternTableCheckRejectsBadTables(t *testing.T) {
+	const calm = "A calm sentence about a payment."
+	row := func(id, reason string) FraudPattern { return FraudPattern{ID: id, Reason: reason} }
+
+	bad := map[string][]FraudPattern{
+		"an empty table":              nil,
+		"an upper case id":            {row("Test_then_large", calm)},
+		"an id with a hyphen":         {row("test-then-large", calm)},
+		"an id with a double score":   {row("test__large", calm)},
+		"an id that starts with _":    {row("_test", calm)},
+		"an id that starts with a 1":  {row("1test", calm)},
+		"an empty id":                 {row("", calm)},
+		"a repeated id":               {row("same_id", calm), row("same_id", calm)},
+		"a reason with an avoid word": {row("one", "This is a fraudster pattern.")},
+		"a reason with a digit":       {row("one", "Tried 3 times.")},
+		"a reason with two sentences": {row("one", "One thing. Another thing.")},
+		"a reason in lower case":      {row("one", "this is not capital.")},
+		"a reason that is too long":   {row("one", "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.")},
+		"a reason with a rupee sign":  {row("one", "It costs ₹ a lot.")},
+		"a blank reason":              {row("one", "")},
+	}
+	for name, table := range bad {
+		if len(patternTableProblems(table)) == 0 {
+			t.Errorf("%s was not reported", name)
+		}
+	}
+
+	if got := patternTableProblems([]FraudPattern{row("one", calm), row("two_words", calm), row("rule_9", calm)}); len(got) != 0 {
+		t.Errorf("a clean table was reported: %v", got)
+	}
+}

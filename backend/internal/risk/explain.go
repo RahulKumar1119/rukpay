@@ -70,10 +70,50 @@ var retrySentences = []pointsSentence{
 	{points: 5, sentence: sentRetriesMid},
 }
 
-// Input is everything Assess reads. Later groups add the evaluation time, the
-// History_Snapshot and the recipient data.
+// Caps and windows of the behavioural rules (Requirements 9, 10 and 11). The
+// windows are in seconds.
+const (
+	// BehaviourCap is the most points that the behavioural Contributions can add
+	// to a score together.
+	BehaviourCap = 25
+	// VelocityWindow, FrequencyWindow and RepeatWindow are the three windows
+	// that the velocity, daily_frequency and repeat_attempts signals count
+	// History_Events in.
+	VelocityWindow  = 600
+	FrequencyWindow = 86_400
+	RepeatWindow    = 3_600
+	// DeviationMinEvents is the fewest History_Events, and DeviationMinAmount the
+	// smallest amount in rupees, for which amount_deviation can earn points.
+	DeviationMinEvents = 5
+	DeviationMinAmount = 2_000
+)
+
+// HistoryEvent is the part of a stored History_Event that scoring reads. It is
+// a small struct of its own, so that the engine takes no more from the store
+// package than types and constants. Times are epoch seconds.
+type HistoryEvent struct {
+	// At is the time of the evaluation that the event records.
+	At int64
+	// AmountINR is the amount of that payment in rupees.
+	AmountINR int64
+	// BeneficiaryRef is the masked identifier of its recipient, or "" when the
+	// payment named none.
+	BeneficiaryRef string
+}
+
+// Input is everything Assess reads. Later groups add the recipient data.
 type Input struct {
 	Signals Signals
+	// Now is the evaluation time in epoch seconds. Assess reads no clock, so the
+	// caller reads the time once and passes it here.
+	Now int64
+	// History is the History_Snapshot: the payer's earlier events, oldest first.
+	// It holds no event of the payment being scored. Assess reads it and never
+	// changes it, and its result does not depend on the order of events.
+	History []HistoryEvent
+	// BeneficiaryRef is the masked identifier of the recipient of the payment,
+	// or "" when the payment names none.
+	BeneficiaryRef string
 }
 
 // Assessment is the result of Assess.
@@ -85,14 +125,20 @@ type Assessment struct {
 	State store.VaultState
 	// Baseline is the sum of the points that the five Signals earn.
 	Baseline int
+	// Behaviour is the sum of the behavioural points after the Behaviour_Cap,
+	// 0 to BehaviourCap.
+	Behaviour int
 	// Explanation lists the Contributions in the order of Requirement 1.3. It is
 	// never nil on success, and it is empty when Score is 0.
 	Explanation []Contribution
 }
 
 // Assess validates the signals and scores them, returning the Explanation with
-// the score. It returns the *ValidationError of Validate for invalid signals
-// and the zero Assessment with it.
+// the score. The score is the baseline of the five Signals, plus the behavioural
+// points that the History_Snapshot earns up to BehaviourCap, up to MaxScore, and
+// every point is a Contribution of the Explanation, the two cap lines included.
+// It returns the *ValidationError of Validate for invalid signals and the zero
+// Assessment with it.
 //
 // Assess is a pure function of its argument: it reads no clock, does no I/O,
 // uses no randomness, keeps no state between calls and changes nothing it was
@@ -105,7 +151,7 @@ func Assess(in Input) (Assessment, error) {
 
 	// The fixed order of Requirement 1.3 comes from this code path. A
 	// Contribution is added only when its points are above 0.
-	list := make([]Contribution, 0, 5)
+	list := make([]Contribution, 0, 12)
 	list = appendAmount(list, s.AmountINR)
 	list = appendLooked(list, SignalBeneficiaryAge, agePoints(s.BeneficiaryAgeHrs), ageSentences)
 	if s.IsLateNight {
@@ -116,19 +162,49 @@ func Assess(in Input) (Assessment, error) {
 	}
 	list = appendLooked(list, SignalRapidRetries, retryPoints(s.RapidRetryCount), retrySentences)
 
-	// The five baseline rules add up to at most MaxScore, so no score_cap line
-	// is needed yet. The behavioural and care points that later groups add can
-	// push the total over it.
-	baseline := 0
-	for _, c := range list {
-		baseline += c.Points
+	baseline := sumPoints(list)
+
+	// Steps 6 to 10 of the pipeline: the behavioural Contributions, in their
+	// fixed order. They read the History_Snapshot and nothing else, so with an
+	// empty snapshot they add nothing and the score is the baseline.
+	first := len(list)
+	list = appendWindowSignals(list, in.Now, in.BeneficiaryRef, in.History)
+	list = appendDeviation(list, s.AmountINR, in.History)
+	list = appendPatterns(list, s.AmountINR, in.BeneficiaryRef, in.Now, in.History)
+	behaviour := sumPoints(list[first:])
+
+	// Step 11: the Behaviour_Cap applies to the behavioural sum once. A sum of
+	// exactly BehaviourCap needs no line.
+	if behaviour > BehaviourCap {
+		list = append(list, Contribution{Signal: SignalBehaviourCap, Points: BehaviourCap - behaviour, Reason: sentBehaviourCap})
+		behaviour = BehaviourCap
 	}
+
+	// Step 13: the Risk_Score is at most MaxScore. A total of exactly MaxScore
+	// needs no line. Care points join the total in a later group, ahead of this
+	// line.
+	total := baseline + behaviour
+	if total > MaxScore {
+		list = append(list, Contribution{Signal: SignalScoreCap, Points: MaxScore - total, Reason: sentScoreCap})
+		total = MaxScore
+	}
+
 	return Assessment{
-		Score:       baseline,
-		State:       MapState(baseline),
+		Score:       total,
+		State:       MapState(total),
 		Baseline:    baseline,
+		Behaviour:   behaviour,
 		Explanation: list,
 	}, nil
+}
+
+// sumPoints returns the sum of the points of the Contributions.
+func sumPoints(list []Contribution) int {
+	sum := 0
+	for _, c := range list {
+		sum += c.Points
+	}
+	return sum
 }
 
 // appendAmount adds the amount Contribution when the amount reaches a tier.
