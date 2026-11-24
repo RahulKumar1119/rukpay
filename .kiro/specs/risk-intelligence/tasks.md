@@ -141,52 +141,54 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
   - Run in `backend/`: `gofmt -l .` (no output), `go vet ./...`, `go test -race -count=1 ./... -rapid.checks=1000`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Show the Explanation on both phones
+- [x] 5. Show the Explanation on both phones
   - GitHub issue: #2 (https://github.com/RahulKumar1119/rukpay/issues/2)
-  - [ ] 5.1 Add the Explanation types to `frontend/src/lib/api.ts` and the test fixtures
+  - [x] 5.1 Add the Explanation types to `frontend/src/lib/api.ts` and the test fixtures
     - Export `ExplanationItem {signal: string; points: number; reason: string}` and add an optional `explanation?: ExplanationItem[]` to `VaultView` (absent when the server omits it). Keep every other export unchanged
     - Let `makeView` in `src/test/stubs.ts` accept an `explanation`
     - _Requirements: 22.1, 23.5_
 
-  - [ ] 5.2 Implement `frontend/src/lib/explanation.ts` and the `explanation` copy
+  - [x] 5.2 Implement `frontend/src/lib/explanation.ts` and the `explanation` copy
     - In `copy.ts` add `COPY.explanation` (heading "Why RukPay looked closer", guardian heading "What RukPay noticed", the empty-list sentence, `total`, `point`, `points`) and `NEW_COPY_GROUPS`, the list of groups this feature adds (later groups append to it). Use the exact texts of the design's copy table
     - `readExplanation(view)` returns `absent` (no key, not an array, or an item without a string `signal`, an integer `points` and a non-empty string `reason`), `empty` or `items`. `pointsText(n)` gives "+20 points", "-5 points", "+1 point". `guardianTop(items)` keeps items with points above 0, stable-sorted by points descending, first three. No points are summed or changed in the browser
+    - **Done, with one placement difference (design section "copy.ts additions"):** the text builders `pointsText` and `totalText` live in `copy.ts`, next to `questionProgress`, and `explanation.ts` re-exports them. `ALL_COPY` holds sample outputs of them, and `copy.ts` cannot import `explanation.ts` without an import cycle. `NEW_COPY_HELPER_SAMPLES` lists those samples for the copy tests
     - _Requirements: 4.1, 4.2, 4.3, 4.5, 4.7, 4.9, 25.1_
 
-  - [ ] 5.3 Add the copy test helpers
+  - [x] 5.3 Add the copy test helpers
     - Files: `src/test/avoidWords.ts` (the Avoid_Words: the shipped banned terms in `src/test/bannedTerms.ts` plus the extra words of the glossary), `src/test/readability.ts` (a vowel-group syllable counter and the Flesch-Kincaid grade), `src/test/readability.test.ts` (known sentences)
     - The second verification question may need a one-line exemption comment if the counter puts it over 6.9 (design conflict C-8; Requirement 17.8 fixes its wording)
+    - **Done. Conflict C-8 resolved with no exemption:** the counter in `readability.ts` rates the three fixed verification questions at 4.2, 6.3 and 6.0, all under 6.9, so none needs one. `readability.test.ts` pins those three grades. If a later change of the counter pushes one over, add a one-line exemption for that question and a comment. Do not reword it
     - _Requirements: 25.8, 28.7_
 
-  - [ ] 5.4 Write property test for new copy
+  - [x] 5.4 Write property test for new copy
     - File: `src/lib/copy.new.pbt.test.ts`
     - **Property 38: New copy is calm, simulated and short**
     - Loop over every string of the groups in `NEW_COPY_GROUPS` and the sample output of each text helper (so later groups are checked with no edit). Also test that every string of `COPY` is in `ALL_COPY`. The credential-word rule (no OTP, PIN, password, CVV, "account number", "UPI id" or "phone number") applies to the `scenario` group and starts to bite when group 19 creates it
     - **Validates: Requirements 5.10, 7.7, 25.2, 25.3, 25.4, 25.6, 25.8, 25.9**
 
-  - [ ] 5.5 Write property test for reading the explanation
+  - [x] 5.5 Write property test for reading the explanation
     - File: `src/lib/explanation.pbt.test.ts`
     - **Property 32: The explanation is read and shown as received**
     - **Validates: Requirements 4.1, 4.3, 4.5, 4.7, 4.8, 4.9**
     - _Requirements: 28.1_
 
-  - [ ] 5.6 Implement `ExplanationCard.tsx` and `GuardianSummary.tsx` and wire both phones
+  - [x] 5.6 Implement `ExplanationCard.tsx` and `GuardianSummary.tsx` and wire both phones
     - Files: `src/components/ExplanationCard.tsx`, `src/components/GuardianSummary.tsx`, `UserPhonePanel.tsx`, `GuardianPhonePanel.tsx`
     - Card: `<section aria-labelledby>` with one `<li>` per Contribution in received order (the `reason` as plain text and a bold points chip), `behaviour_cap` and `score_cap` as ordinary lines, a last line "Total: N points" from `view.risk_score` at 20px, and for an empty list only the calm sentence. It shows no `signal` value and has no toggle, timer or dismiss control
     - `UserPhonePanel` shows the card after the state block whenever the vault has a usable explanation and removes it only when the vault is discarded. The reality-check modal still covers the whole phone. `GuardianPhonePanel` shows the summary (at most three lines from `guardianTop`) inside the alert box only while the vault is LOCKED_15M, and leaves the two action buttons, labels and order untouched
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 26.1, 26.2, 26.3, 26.4, 26.6_
 
-  - [ ] 5.7 Write component tests for the card and the summary
+  - [x] 5.7 Write component tests for the card and the summary
     - Files: `src/components/ExplanationCard.test.tsx`, `src/components/GuardianSummary.test.tsx`
     - Four or more items with reasons, "+20 points" text, received order and a total equal to `risk_score`; an empty list shows the calm sentence and no line; no `explanation` shows no card and no error; the two cap lines; the summary for 0, 1, 3 and 4 or more items (at most 3 lines, most points first, ties in received order); markup in a `reason` stays text
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.7, 28.4_
 
-  - [ ] 5.8 Extend the smoke tests for the card
+  - [x] 5.8 Extend the smoke tests for the card
     - File: `src/test/smoke.test.ts`
     - Add scenes for the card with a full and with an empty list. Keep every shipped rule: no storage, console, pure red, hit areas of 48px by class, 12px gaps, 7:1 contrast
     - _Requirements: 26.1, 26.3, 26.4, 28.8_
 
-- [ ] 6. Checkpoint - Front end for #2
+- [x] 6. Checkpoint - Front end for #2
   - Run in `frontend/`: `npm run typecheck`, `npm run build`, `npm test`
   - Ensure all tests pass, ask the user if questions arise.
 
