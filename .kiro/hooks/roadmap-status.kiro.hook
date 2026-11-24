@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Roadmap status",
+  "description": "Manual. Shows which roadmap sub-issues of GitHub issue #1 are open or closed, and which are ready to start.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Read .kiro/steering/roadmap.md for the phases and dependencies. Then run: gh api repos/RahulKumar1119/rukpay/issues/1/sub_issues --jq '.[] | \"#\\(.number) [\\(.state)] \\(.title)\"'. Report each sub-issue by phase with its current state. List the open issues whose dependencies are all closed, and name the next one to start. Flag any open decision from the steering file that touches that issue. This is read-only: do not edit files, issues or labels, and do not start any work."
+  }
+}
