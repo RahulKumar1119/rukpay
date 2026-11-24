@@ -31,6 +31,10 @@
     "5.4 Write property test for new copy": {
       "status": "passed",
       "lastRunTimestamp": 1795507593163
+    },
+    "7.6 Write property test for the history store contract": {
+      "status": "passed",
+      "lastRunTimestamp": 1795518990270
     }
   },
   "executionHistory": {
@@ -67,6 +71,13 @@
         "executionId": "e55dd0eb-c0a3-4db8-ad64-e81fa2f8fa3b",
         "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
         "timestamp": 1795509482814
+      }
+    ],
+    "7. Store the payer's recent history": [
+      {
+        "executionId": "9a0cede2-b7e0-4e9e-852b-b90a83218b9a",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795517203090
       }
     ]
   }

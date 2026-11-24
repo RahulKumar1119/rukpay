@@ -192,40 +192,40 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
   - Run in `frontend/`: `npm run typecheck`, `npm run build`, `npm test`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Store the payer's recent history
+- [x] 7. Store the payer's recent history
   - GitHub issue: #4 (https://github.com/RahulKumar1119/rukpay/issues/4)
-  - [ ] 7.1 Add the masked-identifier helpers in `backend/internal/store/mask.go`
+  - [x] 7.1 Add the masked-identifier helpers in `backend/internal/store/mask.go`
     - `MaskFormat` (`MaskNone`, `MaskAccount`, `MaskPhone`, `MaskUPI`), `MaskedFormat(v)` and `ValidateMaskedIdentifier(v)` (returns `ErrUnmaskedIdentifier`, rejects the empty string), using the same three patterns as `ValidateMasked`, which stays unchanged
     - Write `store/mask_identifier_test.go` next to it
     - _Requirements: 13.9, 24.1_
 
-  - [ ] 7.2 Define the history types in `backend/internal/store/history.go`
+  - [x] 7.2 Define the history types in `backend/internal/store/history.go`
     - `PayerKey = "demo-payer"`, `HistoryRetentionSeconds = 604_800`, `SnapshotLimit = 100`, `HistoryEvent{ID, At, AmountINR, BeneficiaryRef, ExpiresAt}` with `dynamodbav` tags, `HistoryExpiry(at)` (saturating add), the `HistoryStore` interface (`AppendHistory`, `RecentHistory`), and the sort-key helper `historySortKey(at, id)` = `E#` + `%020d` of `uint64(at) ^ (1<<63)` + `#` + id. Leave `VaultStore` with its three methods
     - _Requirements: 12.6, 12.10, 13.1, 13.3, 13.4, 24.8_
 
-  - [ ] 7.3 Implement history in `MemoryStore`
+  - [x] 7.3 Implement history in `MemoryStore`
     - Files: `store/memory.go` (add the `history` map), `store/memory_history.go`
     - `AppendHistory`: context check, `ErrUnmaskedIdentifier` first for a non-empty unmasked ref, `ErrAlreadyExists` for a stored `(at, id)`. `RecentHistory`: limit below 1 returns an empty list; sort by `(At, ID)` descending, keep `limit`, drop events with `ExpiresAt != 0 && ExpiresAt < now`, return ascending. Errors are `opError` values with no event field in the text
     - _Requirements: 13.2, 13.7, 13.9, 13.11, 13.12, 13.13, 24.5_
 
-  - [ ] 7.4 Implement history in `DynamoDBStore`
+  - [x] 7.4 Implement history in `DynamoDBStore`
     - Files: `store/dynamodb.go` (add `Query` to `DynamoDBClient`, add `queryByPartition = "PK = :pk"`), `store/dynamodb_history.go`
     - Items: `PK = HIST#<payer>`, `SK` from `historySortKey`, `createCondition` on the write. `RecentHistory` sends exactly one `Query` (`ScanIndexForward: false`, `Limit`, `ConsistentRead: true`, no `IndexName`), drops expired items, reverses to ascending, and sends no request for a limit below 1. No `Scan` exists in the client interface
     - The test package compiles only when `fakeDynamoDB` has the new method, so add a stub `Query` to the fake that panics with `fakeDynamoDB: unsupported ...`; task 7.5 replaces it with the real one
     - _Requirements: 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.9, 13.11, 13.12, 13.13, 24.5_
 
-  - [ ] 7.5 Extend the `fakeDynamoDB` test helper for history
+  - [x] 7.5 Extend the `fakeDynamoDB` test helper for history
     - Files: `store/fake_dynamodb_test.go` (helper code only; leave every existing `Test...` function unedited), `store/fake_dynamodb_ext_test.go`
     - Key families `VAULT#`/`META`, `HIST#`/`E#...`; any other pair panics with `fakeDynamoDB: unsupported ...`. Add `Query` for exactly `queryByPartition` with `ScanIndexForward`, `Limit`, `ConsistentRead`, `ExclusiveStartKey`, `LastEvaluatedKey` and a `pageSize` knob; any `IndexName`, filter, projection or other expression panics. Record `queryCalls` and `lastQuery`; support `failNext` and `failOn` for `Query`
     - Self-tests in the new file; the existing `SK = OTHER` self-test must still pass
     - _Requirements: 13.10_
 
-  - [ ] 7.6 Write property test for the history store contract
+  - [x] 7.6 Write property test for the history store contract
     - File: `store/pbt_history_test.go`
     - **Property 14: The history store contract** (one function run against `MemoryStore` and against `DynamoDBStore` over the fake)
     - **Validates: Requirements 12.10, 13.3, 13.4, 13.7, 13.9, 13.11, 13.12, 13.13, 24.5**
 
-  - [ ] 7.7 Write history contract example tests
+  - [x] 7.7 Write history contract example tests
     - File: `store/history_contract_test.go`
     - Round trip with an empty ref and `MaxInt64` amount; 50 concurrent writes with equal times and different ids all survive and a limit-100 read returns all 50; expiry boundary (equal to now is kept, 0 never expires); a cancelled context sends no request; unknown fake shapes stop the test with a clear error; one `Query`, no `IndexName`
     - _Requirements: 13.5, 13.8, 13.10, 13.13, 27.14_
