@@ -58,7 +58,7 @@ func TestLazyExpiryFollowsTheClock(t *testing.T) {
 		// Reading again returns the same state, and an expiry is written once.
 		writes := e.cs.writeCount()
 		again, err := e.svc.Get(ctx, v.ID)
-		if err != nil || again != got {
+		if err != nil || !reflect.DeepEqual(again, got) {
 			rt.Fatalf("second Get = %+v, %v, want %+v", again, err, got)
 		}
 		if e.cs.writeCount() != writes {

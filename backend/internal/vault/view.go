@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/RahulKumar1119/rukpay/backend/internal/redact"
+	"github.com/RahulKumar1119/rukpay/backend/internal/risk"
 	"github.com/RahulKumar1119/rukpay/backend/internal/store"
 )
 
@@ -39,6 +40,14 @@ type View struct {
 	GuardianToken string `json:"guardian_token,omitempty"`
 	// Evidence is set only once the vault is in VETOED.
 	Evidence string `json:"evidence_summary,omitempty"`
+	// Explanation is the list of Contributions stored when the vault was
+	// created (Requirement 2). It is a pointer to a slice so that encoding/json
+	// can tell the three cases apart: a nil pointer leaves the key out (a record
+	// written before this field existed), a pointer to an empty slice writes
+	// "explanation": [] (a payment that earned no points), and a pointer to a
+	// list writes the Contributions in their stored order. The slice behind the
+	// pointer is a copy, so a caller cannot reach the stored one through a View.
+	Explanation *[]risk.Contribution `json:"explanation,omitempty"`
 }
 
 // noopObserver is used when New is given no observer.
@@ -53,6 +62,10 @@ func (noopObserver) Publish(View) {}
 // never stored (Requirement 7.2). It sets the evidence only for VETOED
 // (Requirement 7.3) and ReconfirmNeeded for an EXPIRED vault that is not yet
 // settled (Requirement 4.4). Reason and evidence pass through redact.Text.
+//
+// The Explanation is copied from the record as it is stored. It is never
+// computed here, so a read made after the scoring rules or the payer's history
+// changed still returns the Contributions of the evaluation (Requirement 2.3).
 func (s *Service) view(rec store.VaultRecord, now int64) View {
 	v := View{
 		ID:        rec.ID,
@@ -67,6 +80,7 @@ func (s *Service) view(rec store.VaultRecord, now int64) View {
 			PhoneMasked:        rec.PhoneMasked,
 			AmountINR:          rec.AmountINR,
 		},
+		Explanation: explanationView(rec.Explanation),
 	}
 
 	switch rec.State {
@@ -83,4 +97,18 @@ func (s *Service) view(rec store.VaultRecord, now int64) View {
 		v.ReconfirmNeeded = !rec.Settled
 	}
 	return v
+}
+
+// explanationView returns the pointer a View holds for a stored Explanation. A
+// nil slice means the record has none, and gives a nil pointer so the key is
+// left out. Any other slice, empty or not, gives a pointer to a new slice, so
+// the pointer is never nil and an empty Explanation is written as [] and never
+// as null (Requirements 2.2, 2.5, 2.9).
+func explanationView(stored []store.Contribution) *[]risk.Contribution {
+	if stored == nil {
+		return nil
+	}
+	list := make([]risk.Contribution, len(stored))
+	copy(list, stored)
+	return &list
 }

@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/RahulKumar1119/rukpay/backend/internal/redact"
-	"github.com/RahulKumar1119/rukpay/backend/internal/risk"
 	"github.com/RahulKumar1119/rukpay/backend/internal/store"
 )
 
@@ -100,54 +99,6 @@ func defaultEvidence(rec store.VaultRecord, vetoedAt time.Time) string {
 
 // nowUnix returns the current time in epoch seconds.
 func (s *Service) nowUnix() int64 { return s.clock().Unix() }
-
-// Evaluate scores a payment, creates its vault and returns the first View
-// (Requirement 1.1). The state comes from risk.Evaluate and never from the
-// caller (Requirement 2.2).
-//
-// It returns store.ErrUnmaskedIdentifier when an identifier is not masked, and
-// a *risk.ValidationError when a signal is invalid. Both are returned before
-// any record is created (Requirements 1.6, 1.7).
-func (s *Service) Evaluate(ctx context.Context, req EvaluateRequest) (View, error) {
-	rec := store.VaultRecord{
-		PayerAccountMasked: req.PayerAccountMasked,
-		BeneficiaryMasked:  req.BeneficiaryMasked,
-		UPIMasked:          req.UPIMasked,
-		PhoneMasked:        req.PhoneMasked,
-	}
-	if err := store.ValidateMasked(rec); err != nil {
-		return View{}, err
-	}
-	res, err := risk.Evaluate(req.Signals)
-	if err != nil {
-		return View{}, err
-	}
-	id, err := newID()
-	if err != nil {
-		return View{}, err
-	}
-
-	now := s.nowUnix()
-	rec.ID = id
-	rec.State = res.State
-	rec.RiskScore = res.Score
-	rec.AmountINR = req.AmountINR
-	rec.CreatedAt = time.Unix(now, 0).UTC()
-	rec.Version = 1
-	rec.Settled = res.State == store.StateInstantPass
-	rec.Reason = reasonFor(res.State, req.Signals)
-	rec.ExpiresAt = time.Unix(now+ttlMargin, 0).UTC()
-	if res.State == store.StateLocked15M {
-		rec.LockDeadline = now + LockDuration
-		rec.TokenExpiry = rec.LockDeadline
-		rec.ExpiresAt = time.Unix(rec.LockDeadline+ttlMargin, 0).UTC()
-	}
-
-	if err := s.store.Create(ctx, rec); err != nil {
-		return View{}, err
-	}
-	return s.view(rec, now), nil
-}
 
 // Get returns the current View of a vault, after lazy expiry (Requirement 7.5).
 // It returns an error wrapping store.ErrNotFound for an unknown id.
