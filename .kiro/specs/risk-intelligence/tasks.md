@@ -29,23 +29,24 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
 
 ## Tasks
 
-- [ ] 1. Store the Explanation on the vault record
+- [x] 1. Store the Explanation on the vault record
   - GitHub issue: #2 (https://github.com/RahulKumar1119/rukpay/issues/2)
-  - [ ] 1.1 Add `Contribution` and `VaultRecord.Explanation` to `backend/internal/store`
+  - [x] 1.1 Add `Contribution` and `VaultRecord.Explanation` to `backend/internal/store`
     - Files: `store/types.go`, `store/memory.go`, `store/types_test.go`
     - `Contribution{Signal string, Points int, Reason string}` with `json` and `dynamodbav` tags `signal`, `points`, `reason`
     - `Explanation []Contribution` with `dynamodbav:"explanation,omitempty"` as the last field of `VaultRecord`; a nil slice means absent and a non-nil empty slice means present and empty
     - Add `VaultRecord.clone()` that copies the slice (nil stays nil, empty stays empty). `MemoryStore.Create`, `Get` and `UpdateIf` store and return clones, so a caller cannot change a stored Explanation
     - **Design conflict C-1 (needs the user's confirmation):** append `"explanation"` to the attribute list pinned in `TestVaultRecordAttributeNames` in `store/types_test.go`. This is the one edit of an existing test that Requirement 23.7 needs, because `UpdateIf` writes the whole item. Change nothing else in that test
+    - **Done, with one more compile-only edit the user approved (conflict C-9):** `VaultRecord` holds a slice now, so it can no longer be compared with `==` or `!=`. 18 comparisons in existing tests (`vault`, `guardian`, `httpapi`) were rewritten from `a != b` to `!reflect.DeepEqual(a, b)` with the `reflect` import added, and no assertion changed. Later tasks that compare whole records in tests must use `reflect.DeepEqual` too
     - _Requirements: 2.3, 2.4, 2.5, 2.10, 23.4, 23.7_
 
-  - [ ] 1.2 Write the Explanation canary and round-trip tests
+  - [x] 1.2 Write the Explanation canary and round-trip tests
     - File: `store/explanation_canary_test.go`
     - Pin the SDK rule (`attributevalue` v1.14.3): a nil slice is omitted, an empty slice is stored as an empty list and reads back as an empty non-nil slice. An item without the attribute reads back nil with no error
     - Round trip a nil, an empty and a filled Explanation through `MemoryStore` and through `DynamoDBStore` over `fakeDynamoDB`; check equal Contributions in equal order and that changing a returned slice changes nothing stored
     - _Requirements: 2.4, 2.5, 23.4_
 
-  - [ ] 1.3 Write property test for Explanation storage
+  - [x] 1.3 Write property test for Explanation storage
     - File: `store/pbt_explanation_test.go`
     - **Property 13: The Explanation survives storage, state changes and the view** (storage half: any generated Explanation reads back equal from both adapters; the vault half is task 3.3)
     - **Validates: Requirements 2.3, 2.4, 2.5, 23.4**
