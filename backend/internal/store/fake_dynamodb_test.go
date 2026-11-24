@@ -22,6 +22,7 @@ var _ DynamoDBClient = (*fakeDynamoDB)(nil)
 const (
 	fakeDynamoDBOpPutItem = "PutItem"
 	fakeDynamoDBOpGetItem = "GetItem"
+	fakeDynamoDBOpQuery   = "Query"
 )
 
 // Placeholders inside updateCondition ("attribute_exists(PK) AND #s = :expected").
@@ -36,40 +37,50 @@ const (
 // 11.5). It needs no Docker, DynamoDB Local or network.
 //
 // Behavior:
-//   - Items live in a map keyed by the PK string value. SK must always be
-//     skMeta. PutItem and GetItem store and return deep copies, so callers can
-//     never mutate a stored item through a map they hold.
+//   - Items live in a map keyed by the (PK, SK) pair, as in a DynamoDB table.
+//     Two key families exist: PK "VAULT#<id>" with SK skMeta, and PK
+//     "HIST#<payer>" with an SK that starts with "E#". Any other pair panics.
+//     PutItem and GetItem store and return deep copies, so callers can never
+//     mutate a stored item through a map they hold.
 //   - PutItem evaluates exactly the two ConditionExpressions DynamoDBStore
 //     sends (createCondition and updateCondition) and an absent expression as
 //     an unconditional write. A failed condition returns
 //     *types.ConditionalCheckFailedException and leaves the stored item
-//     unchanged.
+//     unchanged. createCondition looks at the item with the same (PK, SK).
 //   - Anything else (another expression, a missing or mismatched placeholder,
-//     an item without PK or with SK other than META) panics with a message
-//     starting "fakeDynamoDB: unsupported". A drifted store cannot pass a test
-//     silently.
+//     an item without PK or with an SK its PK family does not allow) panics
+//     with a message starting "fakeDynamoDB: unsupported". A drifted store
+//     cannot pass a test silently.
 //   - GetItem returns an output with a nil Item for a missing key, as the real
 //     service does. It always reads the latest write, so ConsistentRead is
 //     recorded but has no other effect.
+//   - Query is in fake_dynamodb_ext_test.go. It supports exactly
+//     queryByPartition and panics for any other shape.
 //   - failNext, failNextConditional and failOn make a chosen call fail with an
 //     arbitrary error. A failed call changes no item.
 //   - The context and the option functions are ignored. TTL deletion of
 //     expires_at is not emulated, since the store compares expiry itself.
 //
-// lastPut, lastGet, putCalls and getCalls record every call, including calls
-// that fail. They are written under mu, so read them directly only when no
-// call is in flight (for example after wg.Wait()).
+// lastPut, lastGet, lastQuery, putCalls, getCalls and queryCalls record every
+// call, including calls that fail. They are written under mu, so read them
+// directly only when no call is in flight (for example after wg.Wait()).
 //
 // The zero value is ready to use; newFakeDynamoDB is a convenience.
 type fakeDynamoDB struct {
 	mu     sync.Mutex
-	items  map[string]map[string]types.AttributeValue // keyed by PK value
+	items  map[string]map[string]types.AttributeValue // keyed by PK + "\x00" + SK
 	faults map[string]fakeDynamoDBFault               // pending failure per operation
 
-	lastPut  *dynamodb.PutItemInput // input of the most recent PutItem, nil before the first call
-	lastGet  *dynamodb.GetItemInput // input of the most recent GetItem, nil before the first call
-	putCalls int                    // number of PutItem calls
-	getCalls int                    // number of GetItem calls
+	lastPut    *dynamodb.PutItemInput // input of the most recent PutItem, nil before the first call
+	lastGet    *dynamodb.GetItemInput // input of the most recent GetItem, nil before the first call
+	lastQuery  *dynamodb.QueryInput   // input of the most recent Query, nil before the first call
+	putCalls   int                    // number of PutItem calls
+	getCalls   int                    // number of GetItem calls
+	queryCalls int                    // number of Query calls
+
+	// pageSize, when above 0, caps the number of items one Query returns, as if
+	// the response page were that small. Set it before the calls start.
+	pageSize int
 }
 
 // fakeDynamoDBFault is a pending injected failure. It fires when remaining
@@ -99,21 +110,21 @@ func (f *fakeDynamoDB) PutItem(_ context.Context, in *dynamodb.PutItemInput, _ .
 
 	// Check the request shape before any injected failure so drift is caught
 	// even in tests that inject errors.
-	pk := fakeDynamoDBKeyOf(in.Item, "PutItem item")
+	key := fakeDynamoDBKeyOf(in.Item, "PutItem item")
 	allow := fakeDynamoDBParseCondition(in)
 
 	if err := f.takeFault(fakeDynamoDBOpPutItem); err != nil {
 		return nil, err
 	}
 
-	old, exists := f.items[pk]
+	old, exists := f.items[key]
 	if !allow(old, exists) {
 		return nil, &types.ConditionalCheckFailedException{}
 	}
 	if f.items == nil {
 		f.items = make(map[string]map[string]types.AttributeValue)
 	}
-	f.items[pk] = fakeDynamoDBCloneItem(in.Item)
+	f.items[key] = fakeDynamoDBCloneItem(in.Item)
 	return &dynamodb.PutItemOutput{}, nil
 }
 
@@ -126,12 +137,12 @@ func (f *fakeDynamoDB) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ .
 	f.getCalls++
 	f.lastGet = in
 
-	pk := fakeDynamoDBKeyOf(in.Key, "GetItem key")
+	key := fakeDynamoDBKeyOf(in.Key, "GetItem key")
 	if err := f.takeFault(fakeDynamoDBOpGetItem); err != nil {
 		return nil, err
 	}
 
-	item, ok := f.items[pk]
+	item, ok := f.items[key]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
 	}
@@ -139,8 +150,8 @@ func (f *fakeDynamoDB) GetItem(_ context.Context, in *dynamodb.GetItemInput, _ .
 }
 
 // failNext makes the next call of op return err instead of running. The
-// failure fires once and is then cleared. op is fakeDynamoDBOpPutItem or
-// fakeDynamoDBOpGetItem.
+// failure fires once and is then cleared. op is fakeDynamoDBOpPutItem,
+// fakeDynamoDBOpGetItem or fakeDynamoDBOpQuery.
 //
 // Failures are tracked per operation, so a pending GetItem failure does not
 // touch PutItem calls. To fail only the follow-up read that UpdateIf performs
@@ -163,7 +174,7 @@ func (f *fakeDynamoDB) failNextConditional(op string) {
 // call) return err instead of running. The failure fires once and is then
 // cleared. A second failOn for the same op replaces a pending one.
 func (f *fakeDynamoDB) failOn(op string, n int, err error) {
-	if op != fakeDynamoDBOpPutItem && op != fakeDynamoDBOpGetItem {
+	if op != fakeDynamoDBOpPutItem && op != fakeDynamoDBOpGetItem && op != fakeDynamoDBOpQuery {
 		panic(fakeDynamoDBUnsupportedf("failure injection for operation %q", op))
 	}
 	if n < 1 || err == nil {
@@ -185,14 +196,14 @@ func (f *fakeDynamoDB) rawItem(id string) map[string]types.AttributeValue {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	item, ok := f.items[pkPrefix+id]
+	item, ok := f.items[fakeDynamoDBItemKey(pkPrefix+id, skMeta)]
 	if !ok {
 		return nil
 	}
 	return fakeDynamoDBCloneItem(item)
 }
 
-// itemCount returns the number of stored items.
+// itemCount returns the number of stored items, of every key family.
 func (f *fakeDynamoDB) itemCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -221,18 +232,41 @@ func fakeDynamoDBUnsupportedf(format string, args ...any) error {
 	return fmt.Errorf("fakeDynamoDB: unsupported: %s", fmt.Sprintf(format, args...))
 }
 
-// fakeDynamoDBKeyOf returns the PK string of attrs and checks that SK is
-// skMeta. what names the request part for the panic message.
+// fakeDynamoDBItemKey joins a partition key and a sort key into the key of the
+// items map. A NUL byte cannot occur in either part of a key the stores build.
+func fakeDynamoDBItemKey(pk, sk string) string {
+	return pk + "\x00" + sk
+}
+
+// fakeDynamoDBKeyOf returns the map key of the (PK, SK) pair in attrs and
+// checks that the pair belongs to a key family the fake knows: PK "VAULT#..."
+// with SK skMeta, or PK "HIST#..." with an SK that starts with "E#". what names
+// the request part for the panic message.
 func fakeDynamoDBKeyOf(attrs map[string]types.AttributeValue, what string) string {
 	pk, ok := attrs[attrPK].(*types.AttributeValueMemberS)
 	if !ok {
 		panic(fakeDynamoDBUnsupportedf("%s has no string attribute %s", what, attrPK))
 	}
 	sk, ok := attrs[attrSK].(*types.AttributeValueMemberS)
-	if !ok || sk.Value != skMeta {
-		panic(fakeDynamoDBUnsupportedf("%s must have string attribute %s = %q", what, attrSK, skMeta))
+	if !ok {
+		panic(fakeDynamoDBUnsupportedf("%s has no string attribute %s", what, attrSK))
 	}
-	return pk.Value
+	switch {
+	case strings.HasPrefix(pk.Value, pkPrefix):
+		if sk.Value != skMeta {
+			panic(fakeDynamoDBUnsupportedf("%s must have string attribute %s = %q when %s starts with %q",
+				what, attrSK, skMeta, attrPK, pkPrefix))
+		}
+	case strings.HasPrefix(pk.Value, histPKPrefix):
+		if !strings.HasPrefix(sk.Value, skHistoryPrefix) {
+			panic(fakeDynamoDBUnsupportedf("%s must have a string attribute %s starting with %q when %s starts with %q",
+				what, attrSK, skHistoryPrefix, attrPK, histPKPrefix))
+		}
+	default:
+		panic(fakeDynamoDBUnsupportedf("%s has a %s that starts with neither %q nor %q",
+			what, attrPK, pkPrefix, histPKPrefix))
+	}
+	return fakeDynamoDBItemKey(pk.Value, sk.Value)
 }
 
 // fakeDynamoDBParseCondition turns the put's ConditionExpression into a

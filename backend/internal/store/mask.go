@@ -12,6 +12,45 @@ var (
 	reUPI = regexp.MustCompile(`^[A-Za-z0-9]\*\*\*@[A-Za-z0-9.\-]+$`)
 )
 
+// MaskFormat names the masked-identifier format that a string matches.
+type MaskFormat int
+
+// Masked-identifier formats. MaskNone means the string matches none of them.
+const (
+	MaskNone MaskFormat = iota
+	MaskAccount
+	MaskPhone
+	MaskUPI
+)
+
+// MaskedFormat reports which masked format v matches, using the same three
+// patterns as ValidateMasked. It returns MaskNone for any other string,
+// including the empty string. The patterns are anchored, so surrounding spaces
+// or a trailing newline make a value unmasked.
+func MaskedFormat(v string) MaskFormat {
+	switch {
+	case reAccount.MatchString(v):
+		return MaskAccount
+	case rePhone.MatchString(v):
+		return MaskPhone
+	case reUPI.MatchString(v):
+		return MaskUPI
+	}
+	return MaskNone
+}
+
+// ValidateMaskedIdentifier returns ErrUnmaskedIdentifier unless v matches one
+// of the three masked formats. It rejects the empty string, because a caller
+// that allows an empty identifier (a History_Event with no recipient) must
+// check for emptiness itself. The error is the bare sentinel and never holds
+// v. Adapters wrap it in an opError.
+func ValidateMaskedIdentifier(v string) error {
+	if MaskedFormat(v) == MaskNone {
+		return ErrUnmaskedIdentifier
+	}
+	return nil
+}
+
 // ValidateMasked returns ErrUnmaskedIdentifier when a non-empty identifier
 // field of rec does not match its mask format. Empty fields are allowed
 // because Signals carry no identifiers (Requirement 12.4).

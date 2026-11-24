@@ -6,12 +6,17 @@ import (
 	"time"
 )
 
-var _ VaultStore = (*MemoryStore)(nil)
+var (
+	_ VaultStore   = (*MemoryStore)(nil)
+	_ HistoryStore = (*MemoryStore)(nil)
+)
 
-// MemoryStore is a thread-safe, in-memory VaultStore for local runs and tests
-// (Requirements 8.1, 8.2). Get takes the read lock. Create and UpdateIf take
-// the write lock, so the state check and the replacement in UpdateIf happen
-// under one lock and exactly one concurrent caller wins (Requirement 8.4).
+// MemoryStore is a thread-safe, in-memory VaultStore and HistoryStore for local
+// runs and tests (Requirements 8.1, 8.2, 13.2). Get takes the read lock. Create
+// and UpdateIf take the write lock, so the state check and the replacement in
+// UpdateIf happen under one lock and exactly one concurrent caller wins
+// (Requirement 8.4). The history methods live in memory_history.go and use the
+// same lock and the same clock.
 //
 // Records are stored and returned as copies made with VaultRecord.clone. The
 // record holds an Explanation slice, so a plain struct copy would share it and
@@ -24,9 +29,10 @@ var _ VaultStore = (*MemoryStore)(nil)
 // Use NewMemoryStore to construct a MemoryStore. The zero value is not ready
 // for use.
 type MemoryStore struct {
-	mu   sync.RWMutex
-	data map[string]VaultRecord
-	now  func() time.Time // injectable clock, defaults to time.Now
+	mu      sync.RWMutex
+	data    map[string]VaultRecord
+	history map[string]map[historyKey]HistoryEvent // payer -> (time, id) -> event
+	now     func() time.Time                       // injectable clock, defaults to time.Now
 }
 
 // NewMemoryStore returns an empty MemoryStore that reads time from time.Now.
@@ -43,8 +49,9 @@ func NewMemoryStoreWithClock(now func() time.Time) *MemoryStore {
 		now = time.Now
 	}
 	return &MemoryStore{
-		data: make(map[string]VaultRecord),
-		now:  now,
+		data:    make(map[string]VaultRecord),
+		history: make(map[string]map[historyKey]HistoryEvent),
+		now:     now,
 	}
 }
 

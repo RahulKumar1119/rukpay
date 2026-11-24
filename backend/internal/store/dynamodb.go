@@ -13,15 +13,18 @@ import (
 
 var (
 	_ VaultStore     = (*DynamoDBStore)(nil)
+	_ HistoryStore   = (*DynamoDBStore)(nil)
 	_ DynamoDBClient = (*dynamodb.Client)(nil)
 )
 
 // DynamoDBClient is the narrow slice of the DynamoDB API that DynamoDBStore
-// calls (Requirements 11.1, 11.2). *dynamodb.Client satisfies it, and tests
-// supply an in-process fake.
+// calls (Requirements 11.1, 11.2, 13.5). *dynamodb.Client satisfies it, and
+// tests supply an in-process fake. It has no Scan method, so the store cannot
+// send a Scan request.
 type DynamoDBClient interface {
 	PutItem(ctx context.Context, in *dynamodb.PutItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, in *dynamodb.GetItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	Query(ctx context.Context, in *dynamodb.QueryInput, opts ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 }
 
 // Item layout and condition expressions (Requirements 9.2, 10.1, 10.2). The
@@ -36,6 +39,11 @@ const (
 
 	createCondition = "attribute_not_exists(PK)"
 	updateCondition = "attribute_exists(PK) AND #s = :expected"
+
+	// queryByPartition is the key condition of every Query: all items of one
+	// partition. It names no index and no filter (Requirements 13.5, 13.6).
+	queryByPartition = "PK = :pk"
+	queryPKValue     = ":pk"
 )
 
 // Fixed messages for client failures. They never include the cause text,
