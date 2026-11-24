@@ -35,6 +35,22 @@
     "7.6 Write property test for the history store contract": {
       "status": "passed",
       "lastRunTimestamp": 1795518990270
+    },
+    "9.3 Write property test for the snapshot and the event": {
+      "status": "passed",
+      "lastRunTimestamp": 1795526584508
+    },
+    "9.4 Write property test for failure paths": {
+      "status": "passed",
+      "lastRunTimestamp": 1795526584956
+    },
+    "9.6 Write property and example tests for the summary phrases": {
+      "status": "passed",
+      "lastRunTimestamp": 1795526585903
+    },
+    "9.5 Write property test for concurrent evaluations": {
+      "status": "passed",
+      "lastRunTimestamp": 1795526594977
     }
   },
   "executionHistory": {
@@ -85,6 +101,13 @@
         "executionId": "aaae86f6-17e7-46d3-9707-6cfd9364bfea",
         "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
         "timestamp": 1795519495524
+      }
+    ],
+    "9. Record history when a payment is evaluated": [
+      {
+        "executionId": "3c310cb2-75b9-41b2-9bc9-9bc40dc88539",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795524018959
       }
     ]
   }

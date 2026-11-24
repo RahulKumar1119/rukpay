@@ -288,43 +288,49 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
     - _Requirements: 27.7_
 
-- [ ] 9. Record history when a payment is evaluated
+- [x] 9. Record history when a payment is evaluated
   - GitHub issue: #4 (https://github.com/RahulKumar1119/rukpay/issues/4)
-  - [ ] 9.1 Read the snapshot and record the event in `backend/internal/vault/evaluate.go`
+  - [x] 9.1 Read the snapshot and record the event in `backend/internal/vault/evaluate.go`
     - `Service.SetHistory(store.HistoryStore)`; a nil store means history is off. Read `now` once; `snapshot()` calls `RecentHistory(ctx, store.PayerKey, 100)`, keeps events with `at > now || now-at < 604800` and maps them to `risk.HistoryEvent`; any error gives an empty snapshot
     - Beneficiary_Ref is the first non-empty of `beneficiary_masked`, `upi_masked`, `phone_masked`. Call `risk.Assess` with the snapshot, `Now` and the ref. After `Create` succeeds, append one `store.HistoryEvent` (its own 128-bit random id, `At = now`, the request amount, the ref, `ExpiresAt = store.HistoryExpiry(now)`); ignore an append error. Run in line: no goroutine, no timer
     - **Design conflict C-6:** the service sets the event's `expires_at`; the store keeps the value it is given
+    - **Done, with three small differences (design section "Evaluate pipeline"):** (a) `Evaluate` calls `risk.Validate` itself, before it reads the clock or the history, so a rejected request reads nothing at all. `Assess` validates again, which costs nothing. (b) `withinRetention` does its subtraction in `uint64` after the `at > now` test, as `risk.within` does, so a stored time of `MinInt64` cannot wrap round and be kept. The design's plain `now-at < 604800` would overflow for such a time. (c) The event id is drawn after the vault is stored, so a failed random read leaves no event, the same as a failed write. The code is in `vault/evaluate.go` and in `vault/vault.go` (the `history` field and `SetHistory`). `Evaluate` uses `reasonForExplained` for the reason (task 9.2)
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.10_
 
-  - [ ] 9.2 Add the behavioural summary phrases in `backend/internal/vault/messages.go`
+  - [x] 9.2 Add the behavioural summary phrases in `backend/internal/vault/messages.go`
     - Constants `msgPhraseVelocity`, `msgPhraseDaily`, `msgPhraseRepeat`, `msgPhraseDeviation`, `msgPhrasePattern` (each at most 8 words, no Avoid_Word). Add `reasonForExplained(state, signals, explanation)`: the old sentence plus one phrase per behavioural Contribution in Explanation order, chosen by Signal_Id alone, the fallback phrase only when the combined list is empty. Use it for REALITY_CHECK and LOCKED_15M; INSTANT_PASS and every later reason stay as before
+    - **Done, without `msgPhraseCare`:** the design's phrase table has a sixth phrase for `beneficiary_care`, and Requirement 3.8 names that signal. This task lists five, and no `beneficiary_care` Contribution exists until the care task, so the sixth was not added. The task that adds care points must add `msgPhraseCare` and one case for `risk.SignalBeneficiaryCare` in `phraseFor`, and one row to `phraseOfSignal` in `vault/phrases_test.go`, which the property model reads. `TestEveryPhraseConstantMeetsTheWordingRules` finds the new constant by its prefix with no edit. `reasonFor` was left as it was and `reasonForExplained` falls back to it, so the old text is the same code path. `signalReasons` is split into `signalReasonList` (no fallback) and the fallback, with the same output
     - _Requirements: 3.8, 3.9, 3.10, 3.11_
 
-  - [ ] 9.3 Write property test for the snapshot and the event
+  - [x] 9.3 Write property test for the snapshot and the event
     - File: `vault/pbt_history_test.go`
     - **Property 16: The snapshot and the event follow the recording rules** (a recording `HistoryStore` wrapper; the Explanation must equal `risk.Assess` run on the expected snapshot)
     - **Validates: Requirements 10.5, 12.1, 12.3, 12.4, 12.5, 12.6, 12.10**
+    - **Done. Added a helper file the task does not name,** `vault/history_harness_test.go`: store wrappers that log the order of every call and can be told to fail, an environment that counts the clock reads, the generators of stored events, and the model of the snapshot (newest 100 by time and id, hide the expired, keep what is within the retention, with `math/big`). The same file `vault/pbt_history_test.go` also holds `TestPresetsKeepTheirStatesUnderAnyRecordedHistory`, the whole-service half of Property 5, and example tests for the retention boundary, the Beneficiary_Ref order, and ten identical payments
+    - Later tasks that put a `Deps` or a `Service` under test with history on must call `SetHistory` or set `Deps.History`; a raw `*MemoryStore` passed as `Deps.Store` does not turn history on
 
-  - [ ] 9.4 Write property test for failure paths
+  - [x] 9.4 Write property test for failure paths
     - File: `vault/pbt_degrade_test.go`
     - **Property 17: Every failure path gives today's result** (failed snapshot read, failed event write, failed vault write, invalid request; the beneficiary cases are added in task 14.5)
     - **Validates: Requirements 2.11, 12.2, 12.7, 12.8**
 
-  - [ ] 9.5 Write property test for concurrent evaluations
+  - [x] 9.5 Write property test for concurrent evaluations
     - File: `vault/pbt_concurrent_history_test.go`
     - **Property 18: Concurrent evaluations leave one event each** (50 to 200 goroutines released together)
     - **Validates: Requirements 12.9, 27.10**
+    - **Done.** The harness forces at least 1000 checks, so the cost of one check is kept low: five runs in six release 50 to 64 goroutines, and one in six up to 200. It takes about 10 seconds under `-race`
 
-  - [ ] 9.6 Write property and example tests for the summary phrases
+  - [x] 9.6 Write property and example tests for the summary phrases
     - Files: `vault/phrases_test.go`, `vault/pbt_phrases_test.go`
     - `phrases_test.go` reads every constant whose name starts `msgPhrase` and applies Requirement 3.10. The property compares `reasonForExplained` with `reasonFor`
     - **Property 12: The vault reason keeps its old form and gains calm phrases**
     - **Validates: Requirements 3.8, 3.9, 3.10, 3.11**
 
-  - [ ] 9.7 Wire history into `httpapi` and test it
+  - [x] 9.7 Wire history into `httpapi` and test it
     - Files: `httpapi/router.go`, `httpapi/history_test.go`
     - Add `Deps.History store.HistoryStore`. `assemble` calls `SetHistory`, and when `Deps.Store` is nil it creates one `MemoryStore` for all stores. `Build` uses a type assertion on the store from `NewFromEnv` (task 11.5 replaces it with `store.Extensions`). `Deps{Store: x}` with a nil `History` keeps today's scoring and store call counts
     - Test: a second and third evaluation see the first (a velocity line appears), and after many evaluations the three Presets still give INSTANT_PASS, REALITY_CHECK and LOCKED_15M
+    - **Done.** `Build` uses the inline assertion `history, _ := vs.(store.HistoryStore)`. `history_test.go` also holds a test of `Build` with the `dynamodb` driver against a recording stand-in for the DynamoDB endpoint (one Query, then the vault write, then the event write under `HIST#demo-payer`), and tests that a store passed as `Deps.Store` is never taken as the history
     - _Requirements: 9.9, 12.1, 23.1, 23.6_
 
 - [ ] 10. Checkpoint - Backend risk and storage for #4
