@@ -243,7 +243,7 @@ func TestDynamoDBHistoryReadIsOneQueryWithoutAnIndex(t *testing.T) {
 	for i := 0; i < clientType.NumMethod(); i++ {
 		methods[clientType.Method(i).Name] = true
 	}
-	if want := map[string]bool{"PutItem": true, "GetItem": true, "Query": true}; !reflect.DeepEqual(methods, want) {
+	if want := map[string]bool{"PutItem": true, "GetItem": true, "Query": true, "DeleteItem": true}; !reflect.DeepEqual(methods, want) {
 		t.Fatalf("DynamoDBClient methods = %v, want exactly %v (no Scan)", methods, want)
 	}
 

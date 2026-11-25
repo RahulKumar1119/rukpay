@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "RukPay vault table. One item per cooling-off vault, keyed PK = VAULT#<id> and SK = META. On-demand capacity. DynamoDB TTL removes items once expires_at (Unix epoch seconds) has passed.",
+  "Description": "RukPay table. Three kinds of item share it, told apart by the PK prefix. VAULT#<id> with SK = META holds one cooling-off vault. HIST#<payer> with SK = E#<time>#<id> holds one payment history event. BENE#<payer> with SK = B#<id> holds one saved recipient. No secondary index. On-demand capacity. DynamoDB TTL removes items once expires_at (Unix epoch seconds) has passed.",
   "Resources": {
     "RukPayVaults": {
       "Type": "AWS::DynamoDB::Table",

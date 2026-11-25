@@ -38,15 +38,18 @@ const (
 //
 // Behavior:
 //   - Items live in a map keyed by the (PK, SK) pair, as in a DynamoDB table.
-//     Two key families exist: PK "VAULT#<id>" with SK skMeta, and PK
-//     "HIST#<payer>" with an SK that starts with "E#". Any other pair panics.
-//     PutItem and GetItem store and return deep copies, so callers can never
-//     mutate a stored item through a map they hold.
-//   - PutItem evaluates exactly the two ConditionExpressions DynamoDBStore
-//     sends (createCondition and updateCondition) and an absent expression as
-//     an unconditional write. A failed condition returns
+//     Three key families exist: PK "VAULT#<id>" with SK skMeta, PK
+//     "HIST#<payer>" with an SK that starts with "E#", and PK "BENE#<payer>"
+//     with an SK that starts with "B#". Any other pair panics. PutItem and
+//     GetItem store and return deep copies, so callers can never mutate a stored
+//     item through a map they hold.
+//   - PutItem evaluates exactly the three ConditionExpressions DynamoDBStore
+//     sends (createCondition, updateCondition and replaceCondition) and an
+//     absent expression as an unconditional write. A failed condition returns
 //     *types.ConditionalCheckFailedException and leaves the stored item
 //     unchanged. createCondition looks at the item with the same (PK, SK).
+//   - DeleteItem is in fake_dynamodb_ext_test.go. It evaluates replaceCondition
+//     or no condition and panics for any other shape.
 //   - Anything else (another expression, a missing or mismatched placeholder,
 //     an item without PK or with an SK its PK family does not allow) panics
 //     with a message starting "fakeDynamoDB: unsupported". A drifted store
@@ -61,8 +64,8 @@ const (
 //   - The context and the option functions are ignored. TTL deletion of
 //     expires_at is not emulated, since the store compares expiry itself.
 //
-// lastPut, lastGet, lastQuery, putCalls, getCalls and queryCalls record every
-// call, including calls that fail. They are written under mu, so read them
+// lastPut, lastGet, lastQuery, lastDelete, putCalls, getCalls, queryCalls and
+// deleteCalls record every call, including calls that fail. They are written under mu, so read them
 // directly only when no call is in flight (for example after wg.Wait()).
 //
 // The zero value is ready to use; newFakeDynamoDB is a convenience.
@@ -77,6 +80,9 @@ type fakeDynamoDB struct {
 	putCalls   int                    // number of PutItem calls
 	getCalls   int                    // number of GetItem calls
 	queryCalls int                    // number of Query calls
+
+	lastDelete  *dynamodb.DeleteItemInput // input of the most recent DeleteItem, nil before the first call
+	deleteCalls int                       // number of DeleteItem calls
 
 	// pageSize, when above 0, caps the number of items one Query returns, as if
 	// the response page were that small. Set it before the calls start.
@@ -240,8 +246,9 @@ func fakeDynamoDBItemKey(pk, sk string) string {
 
 // fakeDynamoDBKeyOf returns the map key of the (PK, SK) pair in attrs and
 // checks that the pair belongs to a key family the fake knows: PK "VAULT#..."
-// with SK skMeta, or PK "HIST#..." with an SK that starts with "E#". what names
-// the request part for the panic message.
+// with SK skMeta, PK "HIST#..." with an SK that starts with "E#", or PK "BENE#..."
+// with an SK that starts with "B#". what names the request part for the panic
+// message.
 func fakeDynamoDBKeyOf(attrs map[string]types.AttributeValue, what string) string {
 	pk, ok := attrs[attrPK].(*types.AttributeValueMemberS)
 	if !ok {
@@ -262,31 +269,49 @@ func fakeDynamoDBKeyOf(attrs map[string]types.AttributeValue, what string) strin
 			panic(fakeDynamoDBUnsupportedf("%s must have a string attribute %s starting with %q when %s starts with %q",
 				what, attrSK, skHistoryPrefix, attrPK, histPKPrefix))
 		}
+	case strings.HasPrefix(pk.Value, benePKPrefix):
+		if !strings.HasPrefix(sk.Value, skBeneficiaryPrefix) {
+			panic(fakeDynamoDBUnsupportedf("%s must have a string attribute %s starting with %q when %s starts with %q",
+				what, attrSK, skBeneficiaryPrefix, attrPK, benePKPrefix))
+		}
 	default:
-		panic(fakeDynamoDBUnsupportedf("%s has a %s that starts with neither %q nor %q",
-			what, attrPK, pkPrefix, histPKPrefix))
+		panic(fakeDynamoDBUnsupportedf("%s has a %s that starts with none of %q, %q and %q",
+			what, attrPK, pkPrefix, histPKPrefix, benePKPrefix))
 	}
 	return fakeDynamoDBItemKey(pk.Value, sk.Value)
 }
 
 // fakeDynamoDBParseCondition turns the put's ConditionExpression into a
-// predicate. It panics for any expression other than createCondition and
-// updateCondition, and for placeholders the expression does not use or that
-// are missing, which the real service also rejects.
+// predicate. It panics for any expression other than createCondition,
+// updateCondition and replaceCondition, and for placeholders the expression does
+// not use or that are missing, which the real service also rejects.
 func fakeDynamoDBParseCondition(in *dynamodb.PutItemInput) fakeDynamoDBCondition {
-	names, values := in.ExpressionAttributeNames, in.ExpressionAttributeValues
+	return fakeDynamoDBConditionOf("put", in.ConditionExpression, in.ExpressionAttributeNames, in.ExpressionAttributeValues)
+}
 
-	if in.ConditionExpression == nil {
-		fakeDynamoDBExpectPlaceholders("put without ConditionExpression", names, values, 0, 0)
+// fakeDynamoDBConditionOf is the parser behind PutItem and DeleteItem. verb names
+// the operation for the panic message.
+func fakeDynamoDBConditionOf(verb string, expression *string, names map[string]string, values map[string]types.AttributeValue) fakeDynamoDBCondition {
+	if expression == nil {
+		fakeDynamoDBExpectPlaceholders(verb+" without ConditionExpression", names, values, 0, 0)
 		return func(map[string]types.AttributeValue, bool) bool { return true }
 	}
 
-	switch expr := *in.ConditionExpression; expr {
+	switch expr := *expression; expr {
 	case createCondition:
+		if verb != "put" {
+			panic(fakeDynamoDBUnsupportedf("%s with ConditionExpression %q", verb, expr))
+		}
 		fakeDynamoDBExpectPlaceholders(expr, names, values, 0, 0)
 		return func(_ map[string]types.AttributeValue, exists bool) bool { return !exists }
 
+	case replaceCondition:
+		return fakeDynamoDBReplaceCondition(expr, names, values)
+
 	case updateCondition:
+		if verb != "put" {
+			panic(fakeDynamoDBUnsupportedf("%s with ConditionExpression %q", verb, expr))
+		}
 		fakeDynamoDBExpectPlaceholders(expr, names, values, 1, 1)
 		stateAttr, ok := names[fakeDynamoDBNamePlaceholder]
 		if !ok {

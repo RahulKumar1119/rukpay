@@ -82,7 +82,8 @@ func Build(ctx context.Context, cfg Config) (http.Handler, error) {
 		}
 	}
 	// A store that is no HistoryStore leaves History nil, which turns history off.
-	history, _ := vs.(store.HistoryStore)
+	// The beneficiary result is not used yet: the Beneficiary API wires it later.
+	history, _ := store.Extensions(vs)
 	return New(cfg, Deps{Store: vs, History: history}), nil
 }
 

@@ -62,6 +62,18 @@ func NewFromEnv(ctx context.Context) (VaultStore, error) {
 	}
 }
 
+// Extensions returns the HistoryStore and the BeneficiaryStore that vs also
+// implements, so a caller holding the VaultStore that NewFromEnv built can reach
+// the other two interfaces without a type assertion of its own. Each result is
+// nil when vs does not implement that interface, and a nil vs gives two nils.
+// MemoryStore and DynamoDBStore implement both. NewFromEnv itself is unchanged,
+// because it returns the VaultStore interface that its callers assert on.
+func Extensions(vs VaultStore) (HistoryStore, BeneficiaryStore) {
+	history, _ := vs.(HistoryStore)
+	beneficiaries, _ := vs.(BeneficiaryStore)
+	return history, beneficiaries
+}
+
 // newDynamoDBFromEnv builds a DynamoDBStore from the default AWS config chain,
 // the table name and the optional endpoint override. It returns the VaultStore
 // interface so that a failure yields a nil interface value, not a typed nil.

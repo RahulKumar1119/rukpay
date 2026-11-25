@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,8 +14,10 @@ import (
 )
 
 // This file extends fakeDynamoDB with the Query operation that history reads
-// use (Requirement 13.10), and holds the self-tests of that extension and of the
-// second key family. fake_dynamodb_test.go holds the rest of the fake.
+// and recipient lists use (Requirements 13.10, 20.8), with DeleteItem and the
+// replaceCondition of the Beneficiary_Record writes, and holds the self-tests of
+// those extensions and of the second and third key families.
+// fake_dynamodb_test.go holds the rest of the fake.
 
 // fakeDynamoDBQueryShape is a Query request after the fake has checked it.
 type fakeDynamoDBQueryShape struct {
@@ -289,7 +292,6 @@ func TestFakeDynamoDBKeyFamilies(t *testing.T) {
 			{"VAULT#v1", "OTHER"},
 			{"OTHER#x", "META"},
 			{"OTHER#x", "E#1"},
-			{"BENE#p", "B#1"},
 			{"", "META"},
 			{"v1", "META"},
 		} {
@@ -642,6 +644,558 @@ func TestFakeDynamoDBQueryConstantsPinned(t *testing.T) {
 		{"queryPKValue", queryPKValue, ":pk"},
 		{"histPKPrefix", histPKPrefix, "HIST#"},
 		{"skHistoryPrefix", skHistoryPrefix, "E#"},
+	}
+	for _, tt := range tests {
+		if tt.got != tt.want {
+			t.Errorf("%s = %q, but the fake evaluates %q; update the fake before changing it", tt.name, tt.got, tt.want)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DeleteItem, replaceCondition and the BENE# key family (Requirements 13.10,
+// 20.8). The code below is part of the fake. Its self-tests follow it.
+// ---------------------------------------------------------------------------
+
+// fakeDynamoDBReplaceCondition returns the predicate of replaceCondition for a
+// put or a delete. It needs exactly the names #v and #e and the values :expected
+// and :now, the values as integer Numbers. It holds when the item exists, the
+// attribute #v names holds a Number equal to :expected, and the attribute #e
+// names holds a Number at or above :now. An attribute that is missing or is not
+// a Number makes it false, as in DynamoDB. A placeholder that is missing or has
+// the wrong type panics, as the real service rejects it.
+func fakeDynamoDBReplaceCondition(expr string, names map[string]string, values map[string]types.AttributeValue) fakeDynamoDBCondition {
+	fakeDynamoDBExpectPlaceholders(expr, names, values, 2, 2)
+	versionAttr, ok := names[replaceNameVersion]
+	if !ok {
+		panic(fakeDynamoDBUnsupportedf("%q needs ExpressionAttributeNames[%q]", expr, replaceNameVersion))
+	}
+	expiresAttr, ok := names[replaceNameExpires]
+	if !ok {
+		panic(fakeDynamoDBUnsupportedf("%q needs ExpressionAttributeNames[%q]", expr, replaceNameExpires))
+	}
+	expected := fakeDynamoDBNumberValue(expr, values, replaceValueExpected)
+	now := fakeDynamoDBNumberValue(expr, values, replaceValueNow)
+
+	return func(old map[string]types.AttributeValue, exists bool) bool {
+		if !exists {
+			return false
+		}
+		version, ok := fakeDynamoDBStoredNumber(old, versionAttr)
+		if !ok || version != expected {
+			return false
+		}
+		expires, ok := fakeDynamoDBStoredNumber(old, expiresAttr)
+		return ok && expires >= now
+	}
+}
+
+// fakeDynamoDBNumberValue returns the integer behind the Number placeholder
+// name, or panics when it is missing, not a Number or not an integer.
+func fakeDynamoDBNumberValue(expr string, values map[string]types.AttributeValue, name string) int64 {
+	n, ok := values[name].(*types.AttributeValueMemberN)
+	if !ok {
+		panic(fakeDynamoDBUnsupportedf("%q needs an N value in ExpressionAttributeValues[%q]", expr, name))
+	}
+	v, err := strconv.ParseInt(n.Value, 10, 64)
+	if err != nil {
+		panic(fakeDynamoDBUnsupportedf("%q needs an integer in ExpressionAttributeValues[%q], got %q", expr, name, n.Value))
+	}
+	return v
+}
+
+// fakeDynamoDBStoredNumber returns the integer in attribute name of a stored
+// item. ok is false when the attribute is missing or is not a Number. A Number
+// that is not an integer panics, because no store writes one to these attributes.
+func fakeDynamoDBStoredNumber(item map[string]types.AttributeValue, name string) (int64, bool) {
+	n, ok := item[name].(*types.AttributeValueMemberN)
+	if !ok {
+		return 0, false
+	}
+	v, err := strconv.ParseInt(n.Value, 10, 64)
+	if err != nil {
+		panic(fakeDynamoDBUnsupportedf("stored attribute %q holds the Number %q, which is not an int64", name, n.Value))
+	}
+	return v, true
+}
+
+// DeleteItem implements DynamoDBClient for the request DynamoDBStore sends: a key
+// of a known family and either no ConditionExpression or replaceCondition with
+// its names and values. Any other part of the request (a ReturnValues, a legacy
+// Expected, another expression) panics with a message starting "fakeDynamoDB:
+// unsupported", before any item is touched. A failed condition returns
+// *types.ConditionalCheckFailedException and leaves the item as it was. Deleting
+// a missing key without a condition succeeds, as in the real service.
+//
+// failNext and failOn do not offer DeleteItem: an existing self-test uses that
+// name as its example of an unknown operation. Tests inject delete failures with
+// a wrapper client (design note I-11).
+func (f *fakeDynamoDB) DeleteItem(_ context.Context, in *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.deleteCalls++
+	f.lastDelete = in
+
+	key := fakeDynamoDBKeyOf(in.Key, "DeleteItem key")
+	switch {
+	case in.ReturnValues != "":
+		panic(fakeDynamoDBUnsupportedf("DeleteItem ReturnValues %q", in.ReturnValues))
+	case in.ReturnValuesOnConditionCheckFailure != "":
+		panic(fakeDynamoDBUnsupportedf("DeleteItem ReturnValuesOnConditionCheckFailure %q", in.ReturnValuesOnConditionCheckFailure))
+	case in.ReturnConsumedCapacity != "":
+		panic(fakeDynamoDBUnsupportedf("DeleteItem ReturnConsumedCapacity %q", in.ReturnConsumedCapacity))
+	case in.ReturnItemCollectionMetrics != "":
+		panic(fakeDynamoDBUnsupportedf("DeleteItem ReturnItemCollectionMetrics %q", in.ReturnItemCollectionMetrics))
+	case len(in.Expected) != 0:
+		panic(fakeDynamoDBUnsupportedf("DeleteItem Expected"))
+	case in.ConditionalOperator != "":
+		panic(fakeDynamoDBUnsupportedf("DeleteItem ConditionalOperator %q", in.ConditionalOperator))
+	}
+	allow := fakeDynamoDBConditionOf("delete", in.ConditionExpression, in.ExpressionAttributeNames, in.ExpressionAttributeValues)
+
+	old, exists := f.items[key]
+	if !allow(old, exists) {
+		return nil, &types.ConditionalCheckFailedException{}
+	}
+	delete(f.items, key)
+	return &dynamodb.DeleteItemOutput{}, nil
+}
+
+// ---------------------------------------------------------------------------
+// Self-tests of DeleteItem, replaceCondition and the BENE# family. They check
+// the fake, not the stores that use it.
+// ---------------------------------------------------------------------------
+
+// fakeDynamoDBBeneItem builds a minimal recipient item under payer with the
+// attributes replaceCondition reads.
+func fakeDynamoDBBeneItem(payer, id string, version, expiresAt int64, marker string) map[string]types.AttributeValue {
+	return map[string]types.AttributeValue{
+		attrPK:        &types.AttributeValueMemberS{Value: benePKPrefix + payer},
+		attrSK:        &types.AttributeValueMemberS{Value: skBeneficiaryPrefix + id},
+		attrVersion:   &types.AttributeValueMemberN{Value: strconv.FormatInt(version, 10)},
+		attrExpiresAt: &types.AttributeValueMemberN{Value: strconv.FormatInt(expiresAt, 10)},
+		"marker":      &types.AttributeValueMemberS{Value: marker},
+	}
+}
+
+// fakeDynamoDBReplaceInput is a put of item guarded by replaceCondition, shaped
+// like the input DynamoDBStore.ReplaceBeneficiary builds.
+func fakeDynamoDBReplaceInput(item map[string]types.AttributeValue, expected, now int64) *dynamodb.PutItemInput {
+	names, values := replaceGuard(int(expected), now)
+	in := fakeDynamoDBPutInput(item)
+	in.ConditionExpression = aws.String(replaceCondition)
+	in.ExpressionAttributeNames = names
+	in.ExpressionAttributeValues = values
+	return in
+}
+
+// fakeDynamoDBDeleteInput is a delete of the recipient (payer, id) guarded by
+// replaceCondition, shaped like the input DynamoDBStore.DeleteBeneficiary builds.
+func fakeDynamoDBDeleteInput(payer, id string, expected, now int64) *dynamodb.DeleteItemInput {
+	names, values := replaceGuard(int(expected), now)
+	return &dynamodb.DeleteItemInput{
+		TableName:                 aws.String(fakeDynamoDBTestTable),
+		Key:                       beneficiaryItemKey(payer, id),
+		ConditionExpression:       aws.String(replaceCondition),
+		ExpressionAttributeNames:  names,
+		ExpressionAttributeValues: values,
+	}
+}
+
+// fakeDynamoDBSeedBene stores one recipient item through an unconditional put.
+func fakeDynamoDBSeedBene(t *testing.T, f *fakeDynamoDB, payer, id string, version, expiresAt int64, marker string) {
+	t.Helper()
+	if _, err := f.PutItem(context.Background(), fakeDynamoDBPutInput(fakeDynamoDBBeneItem(payer, id, version, expiresAt, marker))); err != nil {
+		t.Fatalf("seed %s/%s: %v", payer, id, err)
+	}
+}
+
+// fakeDynamoDBBeneMarker returns the marker of the recipient item (payer, id), or
+// "" when there is none.
+func fakeDynamoDBBeneMarker(f *fakeDynamoDB, payer, id string) string {
+	return fakeDynamoDBMarker(f.rawItemAt(benePKPrefix+payer, skBeneficiaryPrefix+id))
+}
+
+func TestFakeDynamoDBBeneficiaryKeyFamily(t *testing.T) {
+	put := func(f *fakeDynamoDB, pk, sk string) {
+		item := map[string]types.AttributeValue{
+			attrPK: &types.AttributeValueMemberS{Value: pk},
+			attrSK: &types.AttributeValueMemberS{Value: sk},
+		}
+		_, _ = f.PutItem(context.Background(), fakeDynamoDBPutInput(item))
+	}
+
+	t.Run("BENE# with a B# sort key is accepted beside the other families", func(t *testing.T) {
+		f := newFakeDynamoDB()
+		for _, pair := range [][2]string{
+			{"BENE#demo-payer", "B#0123456789abcdef0123456789abcdef"},
+			{"BENE#p", "B#1"},
+			{"BENE#", "B#"},
+			{"VAULT#v1", "META"},
+			{"HIST#p", "E#1"},
+		} {
+			put(f, pair[0], pair[1])
+		}
+		if n := f.itemCount(); n != 5 {
+			t.Fatalf("itemCount = %d, want 5", n)
+		}
+	})
+
+	t.Run("BENE# with any other sort key stops the test", func(t *testing.T) {
+		for _, sk := range []string{"META", "E#1", "b#1", "OTHER", ""} {
+			sk := sk
+			t.Run(sk, func(t *testing.T) {
+				f := newFakeDynamoDB()
+				fakeDynamoDBMustPanic(t, func() { put(f, "BENE#p", sk) })
+				fakeDynamoDBMustPanic(t, func() {
+					_, _ = f.GetItem(context.Background(), &dynamodb.GetItemInput{Key: map[string]types.AttributeValue{
+						attrPK: &types.AttributeValueMemberS{Value: "BENE#p"},
+						attrSK: &types.AttributeValueMemberS{Value: sk},
+					}})
+				})
+				if n := f.itemCount(); n != 0 {
+					t.Fatalf("itemCount = %d after a rejected request, want 0", n)
+				}
+			})
+		}
+	})
+
+	t.Run("a B# sort key under another family stops the test", func(t *testing.T) {
+		for _, pk := range []string{"VAULT#v1", "HIST#p", "OTHER#p"} {
+			pk := pk
+			t.Run(pk, func(t *testing.T) {
+				f := newFakeDynamoDB()
+				fakeDynamoDBMustPanic(t, func() { put(f, pk, "B#1") })
+				if n := f.itemCount(); n != 0 {
+					t.Fatalf("itemCount = %d after a rejected request, want 0", n)
+				}
+			})
+		}
+	})
+
+	t.Run("the three families never meet, even for the same name", func(t *testing.T) {
+		f := newFakeDynamoDB()
+		fakeDynamoDBSeed(t, f, "x", "LOCKED_15M", "vault")
+		fakeDynamoDBSeedHistory(t, f, "x", "E#1")
+		fakeDynamoDBSeedBene(t, f, "x", "1", 1, 100, "bene")
+		if n := f.itemCount(); n != 3 {
+			t.Fatalf("itemCount = %d, want 3", n)
+		}
+		if got := fakeDynamoDBBeneMarker(f, "x", "1"); got != "bene" {
+			t.Fatalf("bene marker = %q, want %q", got, "bene")
+		}
+		out := fakeDynamoDBMustQuery(t, f, &dynamodb.QueryInput{
+			TableName:              aws.String(fakeDynamoDBTestTable),
+			KeyConditionExpression: aws.String(queryByPartition),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				queryPKValue: &types.AttributeValueMemberS{Value: "BENE#x"},
+			},
+		})
+		if got := fakeDynamoDBQuerySKs(out); !reflect.DeepEqual(got, []string{"B#1"}) {
+			t.Fatalf("Query on BENE#x returned %v, want only B#1", got)
+		}
+	})
+}
+
+func TestFakeDynamoDBReplaceConditionOnPutItem(t *testing.T) {
+	const now = 1000
+	next := func() map[string]types.AttributeValue { return fakeDynamoDBBeneItem("p", "a", 4, now+50, "new") }
+
+	tests := []struct {
+		name       string
+		seed       func(t *testing.T, f *fakeDynamoDB)
+		in         *dynamodb.PutItemInput
+		wantFailed bool
+		wantMarker string // marker of the stored item afterwards; "" means no item
+	}{
+		{"matching version and a live record replaces", func(t *testing.T, f *fakeDynamoDB) { fakeDynamoDBSeedBene(t, f, "p", "a", 3, now+10, "old") },
+			fakeDynamoDBReplaceInput(next(), 3, now), false, "new"},
+		{"an expiry equal to now still replaces", func(t *testing.T, f *fakeDynamoDB) { fakeDynamoDBSeedBene(t, f, "p", "a", 3, now, "old") },
+			fakeDynamoDBReplaceInput(next(), 3, now), false, "new"},
+		{"an expiry one second before now is refused", func(t *testing.T, f *fakeDynamoDB) { fakeDynamoDBSeedBene(t, f, "p", "a", 3, now-1, "old") },
+			fakeDynamoDBReplaceInput(next(), 3, now), true, "old"},
+		{"a version one above is refused", func(t *testing.T, f *fakeDynamoDB) { fakeDynamoDBSeedBene(t, f, "p", "a", 4, now+10, "old") },
+			fakeDynamoDBReplaceInput(next(), 3, now), true, "old"},
+		{"a version one below is refused", func(t *testing.T, f *fakeDynamoDB) { fakeDynamoDBSeedBene(t, f, "p", "a", 2, now+10, "old") },
+			fakeDynamoDBReplaceInput(next(), 3, now), true, "old"},
+		{"a missing item is refused and nothing is created", func(*testing.T, *fakeDynamoDB) {},
+			fakeDynamoDBReplaceInput(next(), 3, now), true, ""},
+		{"an item without a version attribute is refused", func(t *testing.T, f *fakeDynamoDB) {
+			item := fakeDynamoDBBeneItem("p", "a", 3, now+10, "old")
+			delete(item, attrVersion)
+			if _, err := f.PutItem(context.Background(), fakeDynamoDBPutInput(item)); err != nil {
+				t.Fatal(err)
+			}
+		}, fakeDynamoDBReplaceInput(next(), 3, now), true, "old"},
+		{"an item without an expires_at attribute is refused", func(t *testing.T, f *fakeDynamoDB) {
+			item := fakeDynamoDBBeneItem("p", "a", 3, now+10, "old")
+			delete(item, attrExpiresAt)
+			if _, err := f.PutItem(context.Background(), fakeDynamoDBPutInput(item)); err != nil {
+				t.Fatal(err)
+			}
+		}, fakeDynamoDBReplaceInput(next(), 3, now), true, "old"},
+		{"a version that is not a Number is refused", func(t *testing.T, f *fakeDynamoDB) {
+			item := fakeDynamoDBBeneItem("p", "a", 3, now+10, "old")
+			item[attrVersion] = &types.AttributeValueMemberS{Value: "3"}
+			if _, err := f.PutItem(context.Background(), fakeDynamoDBPutInput(item)); err != nil {
+				t.Fatal(err)
+			}
+		}, fakeDynamoDBReplaceInput(next(), 3, now), true, "old"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFakeDynamoDB()
+			tt.seed(t, f)
+
+			_, err := f.PutItem(context.Background(), tt.in)
+
+			if got := fakeDynamoDBIsConditionFailed(err); got != tt.wantFailed {
+				t.Fatalf("condition failed = %v (err = %v), want %v", got, err, tt.wantFailed)
+			}
+			if got := fakeDynamoDBBeneMarker(f, "p", "a"); got != tt.wantMarker {
+				t.Fatalf("stored marker = %q, want %q", got, tt.wantMarker)
+			}
+		})
+	}
+}
+
+func TestFakeDynamoDBDeleteItem(t *testing.T) {
+	const now = 1000
+	ctx := context.Background()
+
+	t.Run("a matching version and a live record is deleted", func(t *testing.T) {
+		f := newFakeDynamoDB()
+		fakeDynamoDBSeedBene(t, f, "p", "a", 3, now+10, "old")
+		fakeDynamoDBSeedBene(t, f, "p", "b", 3, now+10, "other")
+		if _, err := f.DeleteItem(ctx, fakeDynamoDBDeleteInput("p", "a", 3, now)); err != nil {
+			t.Fatalf("DeleteItem: %v", err)
+		}
+		if got := fakeDynamoDBBeneMarker(f, "p", "a"); got != "" {
+			t.Fatalf("the deleted item is still stored with marker %q", got)
+		}
+		if got := fakeDynamoDBBeneMarker(f, "p", "b"); got != "other" {
+			t.Fatalf("another item has marker %q, want %q", got, "other")
+		}
+	})
+
+	t.Run("a refused condition keeps the item", func(t *testing.T) {
+		for _, tc := range []struct {
+			name           string
+			version, until int64
+		}{
+			{"another version", 4, now + 10},
+			{"an expired record", 3, now - 1},
+		} {
+			f := newFakeDynamoDB()
+			fakeDynamoDBSeedBene(t, f, "p", "a", tc.version, tc.until, "old")
+			_, err := f.DeleteItem(ctx, fakeDynamoDBDeleteInput("p", "a", 3, now))
+			if !fakeDynamoDBIsConditionFailed(err) {
+				t.Fatalf("%s: error = %v, want ConditionalCheckFailedException", tc.name, err)
+			}
+			if got := fakeDynamoDBBeneMarker(f, "p", "a"); got != "old" {
+				t.Fatalf("%s: marker = %q, want the item kept", tc.name, got)
+			}
+		}
+	})
+
+	t.Run("a missing item fails the condition, and succeeds without one", func(t *testing.T) {
+		f := newFakeDynamoDB()
+		if _, err := f.DeleteItem(ctx, fakeDynamoDBDeleteInput("p", "a", 3, now)); !fakeDynamoDBIsConditionFailed(err) {
+			t.Fatalf("conditional delete of a missing item = %v, want ConditionalCheckFailedException", err)
+		}
+		plain := &dynamodb.DeleteItemInput{TableName: aws.String(fakeDynamoDBTestTable), Key: beneficiaryItemKey("p", "a")}
+		if _, err := f.DeleteItem(ctx, plain); err != nil {
+			t.Fatalf("unconditional delete of a missing item = %v, want nil", err)
+		}
+	})
+
+	t.Run("an unconditional delete removes any item of a known family", func(t *testing.T) {
+		f := newFakeDynamoDB()
+		fakeDynamoDBSeed(t, f, "v1", "LOCKED_15M", "vault")
+		fakeDynamoDBSeedHistory(t, f, "p", "E#1")
+		fakeDynamoDBSeedBene(t, f, "p", "a", 1, 5, "bene")
+		keys := []map[string]types.AttributeValue{
+			vaultKey("v1"),
+			{
+				attrPK: &types.AttributeValueMemberS{Value: "HIST#p"},
+				attrSK: &types.AttributeValueMemberS{Value: "E#1"},
+			},
+			beneficiaryItemKey("p", "a"),
+		}
+		for _, key := range keys {
+			if _, err := f.DeleteItem(ctx, &dynamodb.DeleteItemInput{Key: key}); err != nil {
+				t.Fatalf("DeleteItem: %v", err)
+			}
+		}
+		if n := f.itemCount(); n != 0 {
+			t.Fatalf("itemCount = %d, want 0", n)
+		}
+	})
+
+	t.Run("every call is recorded, failed ones too", func(t *testing.T) {
+		f := newFakeDynamoDB()
+		if f.lastDelete != nil || f.deleteCalls != 0 {
+			t.Fatal("a new fake should have recorded no DeleteItem")
+		}
+		first := fakeDynamoDBDeleteInput("p", "a", 3, now)
+		_, _ = f.DeleteItem(ctx, first)
+		second := fakeDynamoDBDeleteInput("p", "b", 4, now)
+		_, _ = f.DeleteItem(ctx, second)
+		if f.lastDelete != second || f.deleteCalls != 2 {
+			t.Fatalf("lastDelete same = %v, deleteCalls = %d, want true and 2", f.lastDelete == second, f.deleteCalls)
+		}
+		if got := aws.ToString(f.lastDelete.ConditionExpression); got != replaceCondition {
+			t.Errorf("ConditionExpression = %q, want %q", got, replaceCondition)
+		}
+		if f.putCalls != 0 || f.getCalls != 0 || f.queryCalls != 0 {
+			t.Errorf("putCalls = %d, getCalls = %d, queryCalls = %d after deletes, want 0", f.putCalls, f.getCalls, f.queryCalls)
+		}
+	})
+
+	t.Run("failure injection is not offered for DeleteItem", func(t *testing.T) {
+		f := newFakeDynamoDB()
+		fakeDynamoDBMustPanic(t, func() { f.failNext("DeleteItem", errors.New("boom")) })
+		fakeDynamoDBMustPanic(t, func() { f.failOn("DeleteItem", 1, errors.New("boom")) })
+		fakeDynamoDBMustPanic(t, func() { f.failNextConditional("DeleteItem") })
+	})
+}
+
+func TestFakeDynamoDBRejectsUnsupportedDeletesAndReplaces(t *testing.T) {
+	const now = 1000
+	good := func() *dynamodb.DeleteItemInput { return fakeDynamoDBDeleteInput("p", "a", 3, now) }
+	badDelete := func(edit func(in *dynamodb.DeleteItemInput)) func(*fakeDynamoDB) {
+		return func(f *fakeDynamoDB) {
+			in := good()
+			edit(in)
+			_, _ = f.DeleteItem(context.Background(), in)
+		}
+	}
+	badReplace := func(edit func(in *dynamodb.PutItemInput)) func(*fakeDynamoDB) {
+		return func(f *fakeDynamoDB) {
+			in := fakeDynamoDBReplaceInput(fakeDynamoDBBeneItem("p", "a", 4, now+50, "new"), 3, now)
+			edit(in)
+			_, _ = f.PutItem(context.Background(), in)
+		}
+	}
+	number := func(v string) types.AttributeValue { return &types.AttributeValueMemberN{Value: v} }
+
+	tests := []struct {
+		name string
+		call func(f *fakeDynamoDB)
+	}{
+		{"a delete with another condition", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ConditionExpression = aws.String("attribute_exists(PK)")
+		})},
+		{"a delete with the create condition", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ConditionExpression = aws.String(createCondition)
+			in.ExpressionAttributeNames, in.ExpressionAttributeValues = nil, nil
+		})},
+		{"a delete with the update condition", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ConditionExpression = aws.String(updateCondition)
+		})},
+		{"a delete without a condition but with placeholders", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ConditionExpression = nil
+		})},
+		{"a delete without the version name", badDelete(func(in *dynamodb.DeleteItemInput) {
+			delete(in.ExpressionAttributeNames, replaceNameVersion)
+		})},
+		{"a delete with a misnamed expiry name", badDelete(func(in *dynamodb.DeleteItemInput) {
+			delete(in.ExpressionAttributeNames, replaceNameExpires)
+			in.ExpressionAttributeNames["#x"] = attrExpiresAt
+		})},
+		{"a delete without the expected value", badDelete(func(in *dynamodb.DeleteItemInput) {
+			delete(in.ExpressionAttributeValues, replaceValueExpected)
+		})},
+		{"a delete with a non-numeric now", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ExpressionAttributeValues[replaceValueNow] = &types.AttributeValueMemberS{Value: "1000"}
+		})},
+		{"a delete with a non-integer expected value", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ExpressionAttributeValues[replaceValueExpected] = number("3.5")
+		})},
+		{"a delete with an extra value", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ExpressionAttributeValues[":extra"] = number("1")
+		})},
+		{"a delete with ReturnValues", badDelete(func(in *dynamodb.DeleteItemInput) { in.ReturnValues = types.ReturnValueAllOld })},
+		{"a delete with ReturnValuesOnConditionCheckFailure", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ReturnValuesOnConditionCheckFailure = types.ReturnValuesOnConditionCheckFailureAllOld
+		})},
+		{"a delete with ReturnConsumedCapacity", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ReturnConsumedCapacity = types.ReturnConsumedCapacityTotal
+		})},
+		{"a delete with ReturnItemCollectionMetrics", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ReturnItemCollectionMetrics = types.ReturnItemCollectionMetricsSize
+		})},
+		{"a delete with a legacy Expected", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.Expected = map[string]types.ExpectedAttributeValue{"version": {}}
+		})},
+		{"a delete with a ConditionalOperator", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.ConditionalOperator = types.ConditionalOperatorAnd
+		})},
+		{"a delete of a key outside the three families", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.Key = map[string]types.AttributeValue{
+				attrPK: &types.AttributeValueMemberS{Value: "OTHER#p"},
+				attrSK: &types.AttributeValueMemberS{Value: "B#a"},
+			}
+		})},
+		{"a delete of a key without SK", badDelete(func(in *dynamodb.DeleteItemInput) {
+			in.Key = map[string]types.AttributeValue{attrPK: &types.AttributeValueMemberS{Value: "BENE#p"}}
+		})},
+		{"a replace without the version name", badReplace(func(in *dynamodb.PutItemInput) {
+			delete(in.ExpressionAttributeNames, replaceNameVersion)
+		})},
+		{"a replace without the now value", badReplace(func(in *dynamodb.PutItemInput) {
+			delete(in.ExpressionAttributeValues, replaceValueNow)
+		})},
+		{"a replace with a string expected value", badReplace(func(in *dynamodb.PutItemInput) {
+			in.ExpressionAttributeValues[replaceValueExpected] = &types.AttributeValueMemberS{Value: "3"}
+		})},
+		{"a replace with an extra name", badReplace(func(in *dynamodb.PutItemInput) {
+			in.ExpressionAttributeNames["#x"] = "label"
+		})},
+		{"a replace of a stored item whose version is not an integer", func(f *fakeDynamoDB) {
+			item := fakeDynamoDBBeneItem("p", "a", 3, now+10, "old")
+			item[attrVersion] = &types.AttributeValueMemberN{Value: "3.5"}
+			_, _ = f.PutItem(context.Background(), fakeDynamoDBPutInput(item))
+			in := fakeDynamoDBReplaceInput(fakeDynamoDBBeneItem("p", "a", 4, now+50, "new"), 3, now)
+			_, _ = f.PutItem(context.Background(), in)
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFakeDynamoDB()
+			fakeDynamoDBSeedBene(t, f, "p", "a", 3, now+10, "old")
+			before := f.itemCount()
+			fakeDynamoDBMustPanic(t, func() { tt.call(f) })
+			if n := f.itemCount(); n < before {
+				t.Fatalf("itemCount = %d after a rejected request, want at least %d", n, before)
+			}
+			// A panic must not leave the mutex held.
+			if got := fakeDynamoDBBeneMarker(f, "p", "a"); got == "" {
+				t.Fatal("the seeded item is gone after a rejected request")
+			}
+		})
+	}
+}
+
+// The fake evaluates the expression and the key prefixes below by their
+// meaning. If dynamodb.go or beneficiary.go changes any of them, update the fake
+// first, then this test.
+func TestFakeDynamoDBBeneficiaryConstantsPinned(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"replaceCondition", replaceCondition, "attribute_exists(PK) AND #v = :expected AND #e >= :now"},
+		{"replaceNameVersion", replaceNameVersion, "#v"},
+		{"replaceNameExpires", replaceNameExpires, "#e"},
+		{"replaceValueExpected", replaceValueExpected, ":expected"},
+		{"replaceValueNow", replaceValueNow, ":now"},
+		{"attrVersion", attrVersion, "version"},
+		{"attrExpiresAt", attrExpiresAt, "expires_at"},
+		{"benePKPrefix", benePKPrefix, "BENE#"},
+		{"skBeneficiaryPrefix", skBeneficiaryPrefix, "B#"},
 	}
 	for _, tt := range tests {
 		if tt.got != tt.want {

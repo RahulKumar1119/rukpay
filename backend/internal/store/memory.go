@@ -7,16 +7,18 @@ import (
 )
 
 var (
-	_ VaultStore   = (*MemoryStore)(nil)
-	_ HistoryStore = (*MemoryStore)(nil)
+	_ VaultStore       = (*MemoryStore)(nil)
+	_ HistoryStore     = (*MemoryStore)(nil)
+	_ BeneficiaryStore = (*MemoryStore)(nil)
 )
 
-// MemoryStore is a thread-safe, in-memory VaultStore and HistoryStore for local
-// runs and tests (Requirements 8.1, 8.2, 13.2). Get takes the read lock. Create
-// and UpdateIf take the write lock, so the state check and the replacement in
-// UpdateIf happen under one lock and exactly one concurrent caller wins
-// (Requirement 8.4). The history methods live in memory_history.go and use the
-// same lock and the same clock.
+// MemoryStore is a thread-safe, in-memory VaultStore, HistoryStore and
+// BeneficiaryStore for local runs and tests (Requirements 8.1, 8.2, 13.2, 20.1).
+// Get takes the read lock. Create and UpdateIf take the write lock, so the state
+// check and the replacement in UpdateIf happen under one lock and exactly one
+// concurrent caller wins (Requirement 8.4). The history methods live in
+// memory_history.go and the beneficiary methods in memory_beneficiary.go. They
+// use the same lock and the same clock.
 //
 // Records are stored and returned as copies made with VaultRecord.clone. The
 // record holds an Explanation slice, so a plain struct copy would share it and
@@ -31,8 +33,9 @@ var (
 type MemoryStore struct {
 	mu      sync.RWMutex
 	data    map[string]VaultRecord
-	history map[string]map[historyKey]HistoryEvent // payer -> (time, id) -> event
-	now     func() time.Time                       // injectable clock, defaults to time.Now
+	history map[string]map[historyKey]HistoryEvent  // payer -> (time, id) -> event
+	bene    map[string]map[string]BeneficiaryRecord // payer -> id -> record
+	now     func() time.Time                        // injectable clock, defaults to time.Now
 }
 
 // NewMemoryStore returns an empty MemoryStore that reads time from time.Now.
@@ -51,6 +54,7 @@ func NewMemoryStoreWithClock(now func() time.Time) *MemoryStore {
 	return &MemoryStore{
 		data:    make(map[string]VaultRecord),
 		history: make(map[string]map[historyKey]HistoryEvent),
+		bene:    make(map[string]map[string]BeneficiaryRecord),
 		now:     now,
 	}
 }

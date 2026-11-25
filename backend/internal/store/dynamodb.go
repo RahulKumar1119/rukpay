@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	_ VaultStore     = (*DynamoDBStore)(nil)
-	_ HistoryStore   = (*DynamoDBStore)(nil)
-	_ DynamoDBClient = (*dynamodb.Client)(nil)
+	_ VaultStore       = (*DynamoDBStore)(nil)
+	_ HistoryStore     = (*DynamoDBStore)(nil)
+	_ BeneficiaryStore = (*DynamoDBStore)(nil)
+	_ DynamoDBClient   = (*dynamodb.Client)(nil)
 )
 
 // DynamoDBClient is the narrow slice of the DynamoDB API that DynamoDBStore
@@ -25,6 +26,7 @@ type DynamoDBClient interface {
 	PutItem(ctx context.Context, in *dynamodb.PutItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, in *dynamodb.GetItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	Query(ctx context.Context, in *dynamodb.QueryInput, opts ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
+	DeleteItem(ctx context.Context, in *dynamodb.DeleteItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
 }
 
 // Item layout and condition expressions (Requirements 9.2, 10.1, 10.2). The
@@ -44,6 +46,15 @@ const (
 	// partition. It names no index and no filter (Requirements 13.5, 13.6).
 	queryByPartition = "PK = :pk"
 	queryPKValue     = ":pk"
+
+	// replaceCondition guards the PutItem of a replace and the DeleteItem of a
+	// delete on a Beneficiary_Record: the item exists, its version is the one the
+	// caller read and it has not expired. It also refuses an expired record, so a
+	// record that DynamoDB has not yet deleted cannot be changed after its TTL has
+	// passed. #v names attrVersion and #e names attrExpiresAt, :expected is the
+	// version as a Number and :now the time in epoch seconds as a Number. A
+	// missing version or expires_at attribute makes the comparison false.
+	replaceCondition = "attribute_exists(PK) AND #v = :expected AND #e >= :now"
 )
 
 // Fixed messages for client failures. They never include the cause text,
@@ -54,9 +65,10 @@ const (
 	msgDecode  = "dynamodb item decode failed"
 )
 
-// DynamoDBStore is a VaultStore that keeps one item per vault in a single
-// DynamoDB table (Requirement 9.1). The table has partition key PK, sort key
-// SK and a TTL attribute named expires_at.
+// DynamoDBStore is a VaultStore, HistoryStore and BeneficiaryStore that keeps
+// every item in a single DynamoDB table (Requirement 9.1): one item per vault,
+// one per history event and one per saved recipient. The table has partition key
+// PK, sort key SK and a TTL attribute named expires_at.
 //
 // Use NewDynamoDBStore to construct a DynamoDBStore. The zero value is not
 // ready for use.
