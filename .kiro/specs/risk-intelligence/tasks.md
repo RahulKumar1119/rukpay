@@ -333,52 +333,60 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
     - **Done.** `Build` uses the inline assertion `history, _ := vs.(store.HistoryStore)`. `history_test.go` also holds a test of `Build` with the `dynamodb` driver against a recording stand-in for the DynamoDB endpoint (one Query, then the vault write, then the event write under `HIST#demo-payer`), and tests that a store passed as `Deps.Store` is never taken as the history
     - _Requirements: 9.9, 12.1, 23.1, 23.6_
 
-- [ ] 10. Checkpoint - Backend risk and storage for #4
+- [x] 10. Checkpoint - Backend risk and storage for #4
   - Run in `backend/`: `gofmt -l .` (no output), `go vet ./...`, `go test -race -count=1 ./... -rapid.checks=1000`
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 11. Store beneficiary records
   - GitHub issue: #5 (https://github.com/RahulKumar1119/rukpay/issues/5)
-  - [ ] 11.1 Define the beneficiary types and interface in `backend/internal/store/beneficiary.go`
+  - [x] 11.1 Define the beneficiary types and interface in `backend/internal/store/beneficiary.go`
     - `TrustLevel` (`NEW`, `TRUSTED`), `ProtectionLevel` (`EXTRA_CARE`, `STANDARD`), `HistoryEntry{At, Kind, AmountINR}`, `BeneficiaryRecord` (id, label, masked identifier, added time, `VerifiedAt *int64`, trust, protection, pressure flag, version, payment count, `FirstPaymentINR *int64`, `History []HistoryEntry`, `ExpiresAt`) with `dynamodbav` tags, `BeneficiaryTTLSeconds = 2_592_000`, a deep `clone()`, and `BeneficiaryStore` with `CreateBeneficiary`, `GetBeneficiary`, `ListBeneficiaries`, `ReplaceBeneficiary(ctx, payer, id, expectedVersion, next)` and `DeleteBeneficiary(ctx, payer, id, expectedVersion)`
     - **Design note I-4:** delete takes the expected version so a PATCH and a DELETE that read one version cannot both apply
+    - **Done, with these choices (design section "Types and constants"):** a create keeps the `Version` it is given, and only a replace sets it to expected + 1. A record is expired when `ExpiresAt` is earlier than the clock, with no exception for 0, because the store always sets the expiry (a history event with 0 never expires, a recipient record does not use that rule). A replace keys the item by its `id` argument and keeps `next.ID` as given, as `UpdateIf` does. The constants `TrustNew`, `TrustTrusted`, `ProtectionExtraCare` and `ProtectionStandard` exist. Later tasks that compare whole records in tests must use `reflect.DeepEqual`
     - _Requirements: 14.1, 19.7, 20.1, 20.4, 20.5_
 
-  - [ ] 11.2 Implement beneficiaries in `MemoryStore`
+  - [x] 11.2 Implement beneficiaries in `MemoryStore`
     - Files: `store/memory.go` (add the `bene` map), `store/memory_beneficiary.go`
     - `ErrUnmaskedIdentifier` before any other check; create on a stored id (expired or not) is `ErrAlreadyExists` and sets `ExpiresAt = now + 2,592,000`; replace and delete under the write lock check missing or expired (`ErrNotFound`) then version (`ErrConditionFailed`), and replace stores `Version = expected + 1` and a fresh expiry; list returns unexpired copies in ascending id order. Errors are `opError` values with the operation and id only
+    - **Done.** Both adapters check a cancelled context first and the identifier second, as the history methods do. The `bene` map and the methods are in `memory.go` and `memory_beneficiary.go`
     - _Requirements: 20.1, 20.3, 20.4, 20.5, 20.6, 20.7, 20.10, 20.11, 20.12, 24.5, 24.8_
 
-  - [ ] 11.3 Implement beneficiaries in `DynamoDBStore`
+  - [x] 11.3 Implement beneficiaries in `DynamoDBStore`
     - Files: `store/dynamodb.go` (add `DeleteItem` to `DynamoDBClient`, add `replaceCondition = "attribute_exists(PK) AND #v = :expected AND #e >= :now"`), `store/dynamodb_beneficiary.go`
     - Items: `PK = BENE#<payer>`, `SK = B#<id>`. Create uses `createCondition`; get is a consistent `GetItem`; list is one `Query` per page that follows `LastEvaluatedKey`; replace is a conditional `PutItem` and delete a conditional `DeleteItem`, both with `replaceCondition`, and on a failed condition a follow-up `GetItem` chooses `ErrNotFound` or `ErrConditionFailed`
     - Add a stub `DeleteItem` to `fakeDynamoDB` that panics with `fakeDynamoDB: unsupported ...` so the test package still compiles; task 11.4 replaces it with the real one
+    - **Done.** `DynamoDBClient` gained `DeleteItem` only. The placeholders of `replaceCondition` are constants (`replaceNameVersion`, `replaceNameExpires`, `replaceValueExpected`, `replaceValueNow`) in `dynamodb_beneficiary.go`, which also holds the `BENE#` prefix. The panicking stub of `DeleteItem` was skipped: task 11.4's real one was written at once
     - _Requirements: 20.2, 20.3, 20.4, 20.5, 20.6, 20.7, 20.9, 20.10, 20.11, 20.12_
 
-  - [ ] 11.4 Extend the `fakeDynamoDB` test helper for beneficiaries
+  - [x] 11.4 Extend the `fakeDynamoDB` test helper for beneficiaries
     - Files: `store/fake_dynamodb_test.go` (helper code only), `store/fake_dynamodb_ext_test.go`
     - Add the `BENE#`/`B#` key family, `DeleteItem`, `replaceCondition` parsing (`#v`, `#e`, `:expected`, `:now`, all numeric) for `PutItem` and `DeleteItem`, and the recorders `deleteCalls` and `lastDelete`. Do not offer `failNext` for `DeleteItem`: an existing self-test uses that name as its unknown-operation example. Inject delete failures with a small wrapper client type in the new test file (design note I-11)
+    - **Done, with two edits to existing tests that the user approved** (both came from tasks 7.5 and 7.7 of this feature and pinned the state before group 11): (1) `TestFakeDynamoDBKeyFamilies` in `fake_dynamodb_ext_test.go` listed `BENE#p` with `B#1` among the pairs the fake must reject. That row was removed, because this task makes the family known. `TestFakeDynamoDBBeneficiaryKeyFamily` pins it now. (2) `TestDynamoDBHistoryReadIsOneQueryWithoutAnIndex` in `history_contract_test.go` pinned the client interface at `PutItem`, `GetItem` and `Query`. `DeleteItem` was added to that set. `TestDynamoDBClientInterfaceHasDeleteItemAndNoScan` pins the four. `failNext`, `failOn` and `failNextConditional` still refuse `DeleteItem`. Delete failures come from `deleteFaultClient` in `beneficiary_contract_test.go`
     - _Requirements: 13.10, 20.8_
 
-  - [ ] 11.5 Add `store.Extensions` and use it in `Build`
+  - [x] 11.5 Add `store.Extensions` and use it in `Build`
     - `func Extensions(vs VaultStore) (HistoryStore, BeneficiaryStore)` in `store/factory.go`, each result nil when `vs` does not implement it; `NewFromEnv` stays as it is. Replace the type assertion of task 9.7 in `httpapi.Build` with it for the history store (task 16.2 wires the beneficiary result). Unit test in `store/factory_test.go` (new file): both adapters return both extensions, and a plain `VaultStore` returns two nils
+    - **Done.** `Build` takes the history store from `store.Extensions` and ignores the beneficiary result until task 16.2
     - _Requirements: 13.2, 20.1_
 
-  - [ ] 11.6 Update the table description in `infra/dynamodb-table.json`
+  - [x] 11.6 Update the table description in `infra/dynamodb-table.json`
     - Only the `Description` changes, to name the `HIST#` and `BENE#` partitions beside `VAULT#`. Add no key attribute and no index
+    - **Done.** `TestInfraTableDescriptionNamesTheThreePartitionsAndChangesNothingElse` checks that everything except `Description` is as before
     - _Requirements: 13.6, 20.2_
 
-  - [ ] 11.7 Write property test for the beneficiary store contract
+  - [x] 11.7 Write property test for the beneficiary store contract
     - File: `store/pbt_beneficiary_test.go`
     - **Property 15: The beneficiary store contract** (run against both adapters; includes one `Query` listing exactly the payer's records)
     - **Validates: Requirements 20.2, 20.3, 20.4, 20.5, 20.6, 20.7, 20.10, 20.11, 20.12**
+    - **Done. Property 15 is several test functions in the one file,** each headed with the property line. Three run on both adapters (the model comparison, the unmasked-first check and copy isolation). Three look at requests and run on DynamoDBStore only (the Query count and shape, the item layout and request guards, and error texts under injected client failures, with delete failures from `deleteFaultClient`). The model is written in the test file and shares no code with the stores, not even the deep copy
 
-  - [ ] 11.8 Write property test for racing replaces at the store
+  - [x] 11.8 Write property test for racing replaces at the store
     - File: `store/pbt_beneficiary_race_test.go`
     - **Property 27: Racing writers produce one winner** (store half: at least 20 goroutines replace or delete the same record at the same version on both adapters; one wins, the rest get `ErrConditionFailed`, and the stored record equals the winner's with version + 1)
     - **Validates: Requirements 20.3, 20.9, 27.10**
+    - **Done, with one refinement of the task text (design Property 27):** when the winner is a DELETE, the other callers get `ErrNotFound`, not `ErrConditionFailed`, because the record is gone then. When the winner is a replace every other caller, replace or delete, gets `ErrConditionFailed`. Task 13.12 and the router must expect the same split (409 `state_conflict`, or 404 after a winning delete). A second test, a read-modify-write loop of 20 to 22 goroutines, checks that no update is lost
 
-  - [ ] 11.9 Write beneficiary store contract examples
+  - [x] 11.9 Write beneficiary store contract examples
     - File: `store/beneficiary_contract_test.go`
     - Create, duplicate (expired too), get, list order, conditional update, delete, expiry with a controlled clock, `ErrUnmaskedIdentifier` before every other check, a failure for each error kind with the record unchanged, and error text with no label, identifier or amount
     - _Requirements: 20.5, 20.6, 20.7, 20.8, 27.14_
