@@ -391,17 +391,21 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
     - Create, duplicate (expired too), get, list order, conditional update, delete, expiry with a controlled clock, `ErrUnmaskedIdentifier` before every other check, a failure for each error kind with the record unchanged, and error text with no label, identifier or amount
     - _Requirements: 20.5, 20.6, 20.7, 20.8, 27.14_
 
-- [ ] 12. Add care points for saved recipients
+- [x] 12. Add care points for saved recipients
   - GitHub issue: #5 (https://github.com/RahulKumar1119/rukpay/issues/5)
-  - [ ] 12.1 Implement care points in `backend/internal/risk/care.go`
+  - [x] 12.1 Implement care points in `backend/internal/risk/care.go`
     - `CareCap = 10`, `Recipient{Protection, Verified, Pressure}`, `carePoints(r)`: 0 for a nil recipient or `STANDARD`; for `EXTRA_CARE`, 10 when there is no verified time or the flag is set, else 5. `Input` gains `Recipient *Recipient`, `Assessment` gains `Care`. Add `sentCareList` (5) and `sentCareNew` (10) to `sentences.go`, add step 12 (`beneficiary_care`) to `Assess` before the `score_cap` check, and cap the Care_Points at 10. Also add `LargePaymentThreshold = 10_000` (rupees) to `explain.go`; `beneficiary` reads it for the `FIRST_PAYMENT_LARGE` indicator
+    - **Done, with one placement difference (design section "Package `risk`"):** `CareCap` and `Recipient` are in `care.go` beside `carePoints`, as this task says, and not in the `explain.go` blocks where the design's listing puts them. `LargePaymentThreshold` is in `explain.go`. The sentence of a tier is found through a two-row table `careSentences` (points to sentence) next to `carePoints`, in the same way as `ageSentences`, so the reason depends on the points alone. `Assess` clamps the care points to `CareCap` before it adds them; the clamp cannot change a result today, because `carePoints` returns only 0, 5 or 10, so `TestUnitCarePointsTable` and `TestUnitCareConstants` pin the two numbers instead
+    - **Open item for the vault task:** the design's phrase table has a `beneficiary_care` phrase, and the note under 9.2 says the care task must add `msgPhraseCare`, one `phraseFor` case and one row of `phraseOfSignal` in `vault/phrases_test.go`. This task was told not to change the vault, so none of the three exists yet. No vault path can produce a care line until task 14 passes a `Recipient` to `Assess`, so task 14 must add them
     - _Requirements: 18.6, 18.7, 18.8, 18.9, 9.2, 1.6_
 
-  - [ ] 12.2 Write property test for care points and widen the generator
+  - [x] 12.2 Write property test for care points and widen the generator
     - Files: `risk/generators_test.go` (add a `Recipient` to `genInput`, including `STANDARD`, each `EXTRA_CARE` case and a nil recipient), `risk/pbt_care_test.go`
     - **Property 9: Care points only add and follow the recipient**
     - Re-run Properties 1 to 5 and 10 with the widened generator; they must pass unchanged
     - **Validates: Requirements 18.6, 18.7, 18.8, 18.9**
+    - **Done, with one difference that needs the user's decision (conflict C-11):** `genInput` draws only recipients that earn no care points (nil or `STANDARD`, `genRecipientWithoutCare`). Drawing an `EXTRA_CARE` recipient from `genInput` breaks two existing tests, which this task may not edit. `TestLowBaselineWithNoExtraPointsStaysInstantPass` (Property 5) tests for "no extra points" through `Behaviour` alone, so a baseline of 35 with 10 care points gives 45 and fails it. `TestAssessMatchesTheBehaviourReferenceModel` (Property 1) compares the whole Explanation with `refAssess`, which has no care line. The care-bearing inputs come from `genCareInput` in `pbt_care_test.go` (no recipient, `STANDARD`, and each `EXTRA_CARE` case, with Signals steered to the lock, pass, cap and threshold edges), and that file re-runs the checks of Properties 1, 3, 4 and 5 against them. To finish the widening later: add `|| a.Care != 0` to the first test, make `refAssess` call the care model of `reference_care_test.go`, then change the recipient draw in `genInput` to `genRecipient()`. `genInvalidInput` draws every kind. `genInputFor` is not widened, because the preset and story tests assume no recipient. `cloneInput` copies the recipient and `baselineOnly` is true only for no events and no recipient
+    - The independent care model is `risk/reference_care_test.go` (`refCareRows`, `refAssessFull`). The care sentence texts are pinned in `risk/care_test.go`, which also holds the example tests. A nil recipient gives the same result as the commit before this task (checked once with a fixed-seed stream of 300,000 inputs, with equal hashes), and `Assess` leaves the `Recipient` unchanged
 
 - [ ] 13. Build the beneficiary rules and service
   - GitHub issue: #5 (https://github.com/RahulKumar1119/rukpay/issues/5)

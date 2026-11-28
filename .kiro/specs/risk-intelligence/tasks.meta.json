@@ -123,6 +123,13 @@
         "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
         "timestamp": 1795620033186
       }
+    ],
+    "12. Add care points for saved recipients": [
+      {
+        "executionId": "c793b7c2-7d49-41d8-adb5-7f51293a1956",
+        "chatSessionId": "sess_ec27bc1a-c2d3-4281-b3df-756cdeed502a",
+        "timestamp": 1795841257834
+      }
     ]
   }
 }
