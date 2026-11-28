@@ -88,6 +88,12 @@ const (
 	DeviationMinAmount = 2_000
 )
 
+// LargePaymentThreshold is the amount in rupees from which a first payment to a
+// saved recipient counts as large. The beneficiary package reads it for the
+// FIRST_PAYMENT_LARGE indicator (Requirement 19), so that the number lives in one
+// place. Scoring itself does not use it.
+const LargePaymentThreshold = 10_000
+
 // HistoryEvent is the part of a stored History_Event that scoring reads. It is
 // a small struct of its own, so that the engine takes no more from the store
 // package than types and constants. Times are epoch seconds.
@@ -101,7 +107,7 @@ type HistoryEvent struct {
 	BeneficiaryRef string
 }
 
-// Input is everything Assess reads. Later groups add the recipient data.
+// Input is everything Assess reads.
 type Input struct {
 	Signals Signals
 	// Now is the evaluation time in epoch seconds. Assess reads no clock, so the
@@ -114,6 +120,9 @@ type Input struct {
 	// BeneficiaryRef is the masked identifier of the recipient of the payment,
 	// or "" when the payment names none.
 	BeneficiaryRef string
+	// Recipient is the saved recipient that the payment names, or nil when it
+	// names none. Assess reads it and never changes it.
+	Recipient *Recipient
 }
 
 // Assessment is the result of Assess.
@@ -128,6 +137,8 @@ type Assessment struct {
 	// Behaviour is the sum of the behavioural points after the Behaviour_Cap,
 	// 0 to BehaviourCap.
 	Behaviour int
+	// Care is the Care_Points of the recipient after the CareCap: 0, 5 or 10.
+	Care int
 	// Explanation lists the Contributions in the order of Requirement 1.3. It is
 	// never nil on success, and it is empty when Score is 0.
 	Explanation []Contribution
@@ -135,8 +146,9 @@ type Assessment struct {
 
 // Assess validates the signals and scores them, returning the Explanation with
 // the score. The score is the baseline of the five Signals, plus the behavioural
-// points that the History_Snapshot earns up to BehaviourCap, up to MaxScore, and
-// every point is a Contribution of the Explanation, the two cap lines included.
+// points that the History_Snapshot earns up to BehaviourCap, plus the care
+// points of the recipient up to CareCap, up to MaxScore, and every point is a
+// Contribution of the Explanation, the two cap lines included.
 // It returns the *ValidationError of Validate for invalid signals and the zero
 // Assessment with it.
 //
@@ -180,10 +192,21 @@ func Assess(in Input) (Assessment, error) {
 		behaviour = BehaviourCap
 	}
 
-	// Step 13: the Risk_Score is at most MaxScore. A total of exactly MaxScore
-	// needs no line. Care points join the total in a later group, ahead of this
-	// line.
-	total := baseline + behaviour
+	// Step 12: the Care_Points of the recipient, at most CareCap. They only add:
+	// no recipient and a recipient on standard protection add nothing, so the
+	// score is never below the baseline. The line comes after behaviour_cap and
+	// before score_cap, so the order of Requirement 1.3 holds. The sentence is
+	// chosen by the points alone.
+	care := carePoints(in.Recipient)
+	if care > CareCap {
+		care = CareCap
+	}
+	list = appendLooked(list, SignalBeneficiaryCare, care, careSentences)
+
+	// Step 13: the Risk_Score is at most MaxScore, judged on the baseline, the
+	// capped behavioural points and the care points together. A total of exactly
+	// MaxScore needs no line.
+	total := baseline + behaviour + care
 	if total > MaxScore {
 		list = append(list, Contribution{Signal: SignalScoreCap, Points: MaxScore - total, Reason: sentScoreCap})
 		total = MaxScore
@@ -194,6 +217,7 @@ func Assess(in Input) (Assessment, error) {
 		State:       MapState(total),
 		Baseline:    baseline,
 		Behaviour:   behaviour,
+		Care:        care,
 		Explanation: list,
 	}, nil
 }

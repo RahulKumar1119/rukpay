@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"pgregory.net/rapid"
+
+	"github.com/RahulKumar1119/rukpay/backend/internal/store"
 )
 
 // This file holds the generators that the Assess property tests share. Every
@@ -13,8 +15,10 @@ import (
 // the answer through the abstractions in this file and in reference_test.go.
 // Group 8 widened Input with a History_Snapshot, an evaluation time and a
 // Beneficiary_Ref, and widened genInput, genInvalidInput, cloneInput and
-// baselineOnly here, so the property tests needed no edit. Group 12 widens them
-// again with the recipient data.
+// baselineOnly here, so the property tests needed no edit. Group 12 widened them
+// again with the recipient data. genInput draws only recipients that earn no
+// care points, see genRecipientWithoutCare for why, and genInvalidInput draws
+// every kind.
 
 // genAmount draws an amount_inr greater than 0. It mixes every tier boundary,
 // the smallest and the largest valid amount, small ordinary amounts and the
@@ -63,6 +67,71 @@ func genSignals() *rapid.Generator[Signals] {
 	})
 }
 
+// genRecipientWithoutCare draws the recipient data of a payment that earns no
+// care points: nil for a payment that names no saved recipient, or a Recipient on
+// STANDARD protection with any verified time and any Pressure_Flag.
+//
+// genInput uses it, and not genRecipient, for one reason. Two Test functions
+// written before group 12 break when the score can include care points:
+//
+//   - TestLowBaselineWithNoExtraPointsStaysInstantPass (Property 5) tests for
+//     "no extra points" through Behaviour alone, so a baseline of 35 with 10 care
+//     points gives 45 and fails it;
+//   - TestAssessMatchesTheBehaviourReferenceModel (Property 1) compares the whole
+//     Explanation with refAssess, which has no care line.
+//
+// Neither Test function may be edited by group 12, so the inputs that earn care
+// points come from genRecipient through genCareInput in pbt_care_test.go, which
+// also holds the care-bearing versions of the checks of Properties 1, 3, 4 and 5.
+// When those two tests are updated (the first to look at Care, the second to use
+// a care-aware model), change the recipient draw in genInput to genRecipient and
+// the other tests need no edit.
+func genRecipientWithoutCare() *rapid.Generator[*Recipient] {
+	return rapid.Custom(func(t *rapid.T) *Recipient {
+		if rapid.Bool().Draw(t, "no_recipient") {
+			return nil
+		}
+		return &Recipient{
+			Protection: store.ProtectionStandard,
+			Verified:   rapid.Bool().Draw(t, "standard_verified"),
+			Pressure:   rapid.Bool().Draw(t, "standard_pressure"),
+		}
+	})
+}
+
+// genRecipient draws the recipient data of a payment: nil for a payment that
+// names no saved recipient, or a Recipient on STANDARD or EXTRA_CARE protection
+// with every combination of the verified time and the Pressure_Flag. The three
+// care cases (0, 5 and 10 points) each come up in about a quarter of the draws.
+func genRecipient() *rapid.Generator[*Recipient] {
+	return rapid.Custom(func(t *rapid.T) *Recipient {
+		// rapid favours small numbers, so the kinds that earn points come first.
+		switch rapid.IntRange(0, 11).Draw(t, "recipient_kind") {
+		case 0, 1:
+			// EXTRA_CARE with no verified time: 10 points, with or without the flag.
+			return &Recipient{
+				Protection: store.ProtectionExtraCare,
+				Pressure:   rapid.Bool().Draw(t, "unverified_pressure"),
+			}
+		case 2, 3:
+			// EXTRA_CARE with a verified time and the flag: 10 points.
+			return &Recipient{Protection: store.ProtectionExtraCare, Verified: true, Pressure: true}
+		case 4, 5, 6:
+			// EXTRA_CARE with a verified time and no flag: 5 points.
+			return &Recipient{Protection: store.ProtectionExtraCare, Verified: true}
+		case 7, 8, 9:
+			// STANDARD earns 0 whatever the verified time and the flag say.
+			return &Recipient{
+				Protection: store.ProtectionStandard,
+				Verified:   rapid.Bool().Draw(t, "standard_verified"),
+				Pressure:   rapid.Bool().Draw(t, "standard_pressure"),
+			}
+		default:
+			return nil
+		}
+	})
+}
+
 // genInput draws a valid Input. It is the one generator that every Assess
 // property test calls.
 //
@@ -104,6 +173,7 @@ func genInput() *rapid.Generator[Input] {
 			Now:            now,
 			History:        history,
 			BeneficiaryRef: ref,
+			Recipient:      genRecipientWithoutCare().Draw(t, "recipient"),
 		}
 	})
 }
@@ -498,6 +568,7 @@ func genInvalidInput() *rapid.Generator[Input] {
 			Now:            now,
 			History:        drawHistory(t, mode, signals.AmountINR, now, ref),
 			BeneficiaryRef: ref,
+			Recipient:      genRecipient().Draw(t, "recipient"),
 		}
 	})
 }
@@ -512,14 +583,17 @@ func cloneInput(in Input) Input {
 		out.History = make([]HistoryEvent, len(in.History))
 		copy(out.History, in.History)
 	}
+	if in.Recipient != nil {
+		r := *in.Recipient
+		out.Recipient = &r
+	}
 	return out
 }
 
 // baselineOnly reports whether the scored evaluation has an empty
-// History_Snapshot and names no Beneficiary, which are the inputs for which
+// History_Snapshot and names no saved recipient, which are the inputs for which
 // Assess must give the score and state that the shipped Evaluate gave. The
-// evaluation time and the Beneficiary_Ref do not matter without events. A group
-// that adds a recipient to Input narrows this.
+// evaluation time and the Beneficiary_Ref do not matter without events.
 func baselineOnly(in Input) bool {
-	return len(in.History) == 0
+	return len(in.History) == 0 && in.Recipient == nil
 }

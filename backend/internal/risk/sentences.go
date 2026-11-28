@@ -62,4 +62,11 @@ const (
 	sentBehaviourCap = "The extra points from recent activity have an upper limit."
 	// sentScoreCap is the sentence of the score cap line, whatever its points.
 	sentScoreCap = "The total cannot go above its upper limit."
+
+	// sentCareList is the care sentence for 5 points: a recipient on the
+	// extra-care list that has been checked and has no pressure mark.
+	sentCareList = "This recipient is on your extra-care list."
+	// sentCareNew is the care sentence for 10 points: a recipient on the
+	// extra-care list that has not been checked yet or has a pressure mark.
+	sentCareNew = "This recipient is new or has not been checked yet."
 )
