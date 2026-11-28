@@ -32,7 +32,7 @@ import {
 import { COPY } from "./copy";
 import type { Preset } from "./presets";
 import { isTerminal } from "./screens";
-import { initialState, reduce, type Notice, type SimAction, type SimState } from "./simulatorReducer";
+import { initialState, reduce, type Notice, type PhoneScreen, type SimAction, type SimState } from "./simulatorReducer";
 import { VaultSync } from "./vaultSync";
 
 export interface Simulator {
@@ -57,6 +57,8 @@ export interface Simulator {
   refresh(): Promise<void>;
   /** Repeats the request that failed, when the server could not be reached. */
   retry(): void;
+  /** Shows another screen on the payer's phone. Sends nothing and leaves the vault as it is. */
+  showScreen(screen: PhoneScreen): void;
 }
 
 /** The commands, without the state. Their identities never change. */
@@ -265,6 +267,7 @@ export function createSimulator(io: {
     fastForward,
     refresh,
     retry: () => getState().unreachable?.retry(),
+    showScreen: (screen) => dispatch({ type: "SHOW_SCREEN", screen }),
   };
 
   return {

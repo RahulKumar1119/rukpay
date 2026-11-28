@@ -150,6 +150,21 @@ export const COPY = {
     point: "point",
     points: "points",
   },
+
+  /**
+   * The one sentence that says the new screens are a simulation. The custom
+   * payment screen and the saved recipients screen both show it, in every state,
+   * with no way to close it (Requirement 25.5).
+   */
+  simulationNotice: "This is a simulation of how RukPay treats payments. No real payment is made, held or cancelled.",
+
+  /** The three screens of the payer's phone. `groupLabel` names the navigation. */
+  phoneNav: {
+    groupLabel: "Phone screens",
+    pay: "Pay",
+    custom: "Custom payment",
+    saved: "Saved recipients",
+  },
 } as const;
 
 /**
@@ -158,7 +173,7 @@ export const COPY = {
  * these groups only, because the older strings predate the rules. A later group
  * is added here when it is added to `COPY`.
  */
-export const NEW_COPY_GROUPS: readonly (keyof typeof COPY)[] = ["explanation"];
+export const NEW_COPY_GROUPS: readonly (keyof typeof COPY)[] = ["explanation", "simulationNotice", "phoneNav"];
 
 /** How many questions the reality check asks. */
 export const QUESTION_COUNT = COPY.realityCheck.questions.length;

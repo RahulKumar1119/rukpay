@@ -7,6 +7,10 @@
  * - A request that cannot reach the server, that takes longer than 10 seconds,
  *   that gets a 5xx answer or that gets an unreadable body throws
  *   `NetworkError`. Any other non-2xx answer throws `ApiError`.
+ * - `GET` and `DELETE` send no body. `POST` and `PATCH` send the JSON of the body
+ *   given to them, after the same redaction.
+ * - A 409 answer carries the current vault, or the current saved recipient when
+ *   the body holds a complete one, on the ApiError.
  * - A caller can cancel a request with an `AbortSignal`. A cancelled request
  *   rejects with an AbortError, which `isAbortError` recognizes, so it is never
  *   mistaken for a failure.
@@ -36,12 +40,16 @@ export interface Signals {
   rapid_retry_count: number;
 }
 
-/** The five signals plus optional masked identifiers. There is no field for a raw identifier. */
+/**
+ * The five signals plus optional masked identifiers. There is no field for a raw identifier.
+ * `beneficiary_id` names a saved recipient. A request that names one sends none of the masked fields.
+ */
 export interface EvaluateRequest extends Signals {
   payer_account_masked?: string;
   beneficiary_masked?: string;
   upi_masked?: string;
   phone_masked?: string;
+  beneficiary_id?: string;
 }
 
 export interface VaultMetadata {
@@ -106,10 +114,102 @@ export interface GuardianActionResult {
   vault: VaultView;
 }
 
+// ---------------------------------------------------------------------------
+// Saved recipients. They mirror the JSON of the backend's `beneficiary` package.
+// No type here has a field for a raw identifier or for an OTP, PIN, password,
+// passcode or CVV (Requirement 22.5). The recipient is held only as a masked
+// identifier.
+// ---------------------------------------------------------------------------
+
+export type TrustLevel = "NEW" | "TRUSTED";
+export type ProtectionLevel = "EXTRA_CARE" | "STANDARD";
+
+/** Why RukPay is careful with a recipient. The server sends them in this order. */
+export type RiskIndicator =
+  | "ADDED_RECENTLY"
+  | "ADDED_UNDER_PRESSURE"
+  | "NOT_VERIFIED"
+  | "WAITING_PERIOD"
+  | "FIRST_PAYMENT_LARGE"
+  | "EXTRA_CARE_ON";
+
+export type HistoryKind =
+  | "ADDED"
+  | "VERIFIED"
+  | "VERIFICATION_NOT_PASSED"
+  | "TRUSTED"
+  | "TRUST_REMOVED"
+  | "PROTECTION_RAISED"
+  | "PROTECTION_LOWERED"
+  | "RENAMED"
+  | "PAYMENT";
+
+/** One thing that happened to a recipient. Only a PAYMENT carries an amount. */
+export interface HistoryEntry {
+  at: number;
+  kind: HistoryKind;
+  amount_inr?: number;
+}
+
+/** A saved recipient as the server shows it. Times are epoch seconds. */
+export interface BeneficiaryView {
+  beneficiary_id: string;
+  label: string;
+  identifier_masked: string;
+  added_at: number;
+  age_hours: number;
+  trust_level: TrustLevel;
+  protection_level: ProtectionLevel;
+  pressure_flag: boolean;
+  trust_eligible_at: number;
+  /** Never missing. Empty when no indicator applies. */
+  indicators: RiskIndicator[];
+  /** Present only once the recipient has passed a check. */
+  verified_at?: number;
+  /** Present only on the answer for one recipient, newest first. */
+  history?: HistoryEntry[];
+}
+
+export interface AddBeneficiaryRequest {
+  label: string;
+  identifier_masked: string;
+  is_late_night?: boolean;
+  active_unknown_call?: boolean;
+}
+
+/** At least one of the first three. The two flags say whether the person is under pressure right now. */
+export interface PatchBeneficiaryRequest {
+  label?: string;
+  trust_level?: TrustLevel;
+  protection_level?: ProtectionLevel;
+  is_late_night?: boolean;
+  active_unknown_call?: boolean;
+}
+
+/** The three answers to the three questions about a recipient. */
+export interface VerificationAnswers {
+  coercion: Answer;
+  acquaintance: Answer;
+  secrecy: Answer;
+}
+
+/** `message` is present for NOT_PASSED. */
+export interface VerificationResult {
+  outcome: "PASSED" | "NOT_PASSED";
+  message?: string;
+  beneficiary: BeneficiaryView;
+}
+
+export interface RemoveResult {
+  removed: true;
+}
+
 /** The body of every non-2xx answer. A 409 also carries the current View. */
 export interface ErrorBody {
   error: { code: string; message: string; field?: string };
   vault?: VaultView;
+  /** The current saved recipient. Present on a 409 `state_conflict` of the recipient routes. */
+  beneficiary?: BeneficiaryView;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,14 +223,24 @@ export class ApiError extends Error {
   readonly field?: string;
   /** The current View. Set for HTTP 409. */
   readonly vault?: VaultView;
+  /** The current saved recipient. Set for an HTTP 409 whose body holds a valid one. */
+  readonly beneficiary?: BeneficiaryView;
 
-  constructor(status: number, code: string, message: string, field?: string, vault?: VaultView) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    field?: string,
+    vault?: VaultView,
+    beneficiary?: BeneficiaryView,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.field = field;
     this.vault = vault;
+    this.beneficiary = beneficiary;
   }
 }
 
@@ -176,6 +286,68 @@ function isVaultView(value: unknown): value is VaultView {
   return isRecord(value) && typeof value.vault_id === "string" && value.vault_id !== "";
 }
 
+// The words the server may use. A View that holds any other word is not read as
+// a View, so the screens never meet a code they have no sentence for.
+const TRUST_LEVELS: readonly string[] = ["NEW", "TRUSTED"] satisfies readonly TrustLevel[];
+const PROTECTION_LEVELS: readonly string[] = ["EXTRA_CARE", "STANDARD"] satisfies readonly ProtectionLevel[];
+const RISK_INDICATORS: readonly string[] = [
+  "ADDED_RECENTLY",
+  "ADDED_UNDER_PRESSURE",
+  "NOT_VERIFIED",
+  "WAITING_PERIOD",
+  "FIRST_PAYMENT_LARGE",
+  "EXTRA_CARE_ON",
+] satisfies readonly RiskIndicator[];
+const HISTORY_KINDS: readonly string[] = [
+  "ADDED",
+  "VERIFIED",
+  "VERIFICATION_NOT_PASSED",
+  "TRUSTED",
+  "TRUST_REMOVED",
+  "PROTECTION_RAISED",
+  "PROTECTION_LOWERED",
+  "RENAMED",
+  "PAYMENT",
+] satisfies readonly HistoryKind[];
+
+const isWholeNumber = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value);
+const isOneOf = (words: readonly string[], value: unknown): boolean => typeof value === "string" && words.includes(value);
+
+function isHistoryEntry(value: unknown): value is HistoryEntry {
+  return (
+    isRecord(value) &&
+    isWholeNumber(value.at) &&
+    isOneOf(HISTORY_KINDS, value.kind) &&
+    (value.amount_inr === undefined || isWholeNumber(value.amount_inr))
+  );
+}
+
+/**
+ * True only for a complete saved recipient: every key of `BeneficiaryView` with
+ * the right type, known words for the levels and the indicators, `verified_at`
+ * and `history` either absent or well formed. A 409 body whose recipient fails
+ * this check still gives an ApiError, with no recipient on it.
+ */
+function isBeneficiaryView(value: unknown): value is BeneficiaryView {
+  return (
+    isRecord(value) &&
+    typeof value.beneficiary_id === "string" &&
+    value.beneficiary_id !== "" &&
+    typeof value.label === "string" &&
+    typeof value.identifier_masked === "string" &&
+    isWholeNumber(value.added_at) &&
+    isWholeNumber(value.age_hours) &&
+    isOneOf(TRUST_LEVELS, value.trust_level) &&
+    isOneOf(PROTECTION_LEVELS, value.protection_level) &&
+    typeof value.pressure_flag === "boolean" &&
+    isWholeNumber(value.trust_eligible_at) &&
+    Array.isArray(value.indicators) &&
+    value.indicators.every((code: unknown) => isOneOf(RISK_INDICATORS, code)) &&
+    (value.verified_at === undefined || isWholeNumber(value.verified_at)) &&
+    (value.history === undefined || (Array.isArray(value.history) && value.history.every(isHistoryEntry)))
+  );
+}
+
 function tryParse(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -187,28 +359,37 @@ function tryParse(text: string): unknown {
 /**
  * Builds the ApiError for a 4xx answer, or returns null when the body is not
  * a readable error. For a 409 the View comes from a top-level `vault` property
- * or, failing that, from a body that is itself a View.
+ * or, failing that, from a body that is itself a View, and the saved recipient
+ * comes from a top-level `beneficiary` property when it is a complete one.
  */
 function toApiError(status: number, body: unknown): ApiError | null {
   if (!isRecord(body)) return null;
 
   let view: VaultView | undefined;
+  let recipient: BeneficiaryView | undefined;
   if (status === 409) {
     if (isVaultView(body.vault)) view = body.vault;
     else if (isVaultView(body)) view = body;
+    if (isBeneficiaryView(body.beneficiary)) recipient = body.beneficiary;
   }
 
   const detail = body.error;
   if (isRecord(detail) && typeof detail.code === "string" && typeof detail.message === "string") {
     const field = typeof detail.field === "string" ? detail.field : undefined;
-    return new ApiError(status, detail.code, detail.message, field, view);
+    return new ApiError(status, detail.code, detail.message, field, view, recipient);
   }
   if (view) return new ApiError(status, "state_conflict", `HTTP ${status}`, undefined, view);
   return null;
 }
 
+/**
+ * `GET` and `DELETE` take no body, and the types say so. `POST` and `PATCH` take
+ * an optional one. A body is run through `redactObject` before it is sent.
+ */
+function request<T>(method: "GET" | "DELETE", path: string, body?: undefined, signal?: AbortSignal): Promise<T>;
+function request<T>(method: "POST" | "PATCH", path: string, body?: unknown, signal?: AbortSignal): Promise<T>;
 async function request<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
   signal?: AbortSignal,
@@ -295,6 +476,50 @@ export function guardianAction(
 /** Moves the lock deadline to a few seconds from now. The server answers 404 when demo mode is off. */
 export function demoFastForward(id: string, signal?: AbortSignal): Promise<VaultView> {
   return request<VaultView>("POST", `${vaultPath(id)}/demo-fast-forward`, undefined, signal);
+}
+
+// ---------------------------------------------------------------------------
+// Saved recipients
+// ---------------------------------------------------------------------------
+
+const beneficiaryPath = (id: string): string => `/api/v1/beneficiaries/${encodeURIComponent(id)}`;
+
+/** Lists the saved recipients, earliest first, without their history. */
+export function listBeneficiaries(signal?: AbortSignal): Promise<BeneficiaryView[]> {
+  return request<BeneficiaryView[]>("GET", "/api/v1/beneficiaries", undefined, signal);
+}
+
+/** Saves a recipient. `identifier_masked` must already be masked. The server answers 201 with the new View. */
+export function addBeneficiary(body: AddBeneficiaryRequest, signal?: AbortSignal): Promise<BeneficiaryView> {
+  return request<BeneficiaryView>("POST", "/api/v1/beneficiaries", body, signal);
+}
+
+/** Reads one saved recipient, with its history, newest first. */
+export function getBeneficiary(id: string, signal?: AbortSignal): Promise<BeneficiaryView> {
+  return request<BeneficiaryView>("GET", beneficiaryPath(id), undefined, signal);
+}
+
+/** Renames a recipient or changes its trust or care. A refusal is an ApiError, and a lost race carries the current View. */
+export function patchBeneficiary(
+  id: string,
+  body: PatchBeneficiaryRequest,
+  signal?: AbortSignal,
+): Promise<BeneficiaryView> {
+  return request<BeneficiaryView>("PATCH", beneficiaryPath(id), body, signal);
+}
+
+/** Removes a recipient and its history. */
+export function deleteBeneficiary(id: string, signal?: AbortSignal): Promise<RemoveResult> {
+  return request<RemoveResult>("DELETE", beneficiaryPath(id), undefined, signal);
+}
+
+/** Sends the three answers about a recipient. The body is `{ answers }` and nothing else. */
+export function verifyBeneficiary(
+  id: string,
+  answers: VerificationAnswers,
+  signal?: AbortSignal,
+): Promise<VerificationResult> {
+  return request<VerificationResult>("POST", `${beneficiaryPath(id)}/verification`, { answers }, signal);
 }
 
 /** The URL of the Server-Sent Events stream for one vault. */

@@ -20,6 +20,9 @@ export interface Notice {
 /** Who reported that the server cannot be reached: a request the person made, or the background poll. */
 export type UnreachableSource = "action" | "poll";
 
+/** Which screen the payer's phone shows: the payment screens, the custom payment form or the saved recipients. */
+export type PhoneScreen = "pay" | "custom" | "saved";
+
 export interface SimState {
   preset: Preset | null;
   vault: VaultView | null;
@@ -38,6 +41,12 @@ export interface SimState {
   fastForwardHidden: boolean;
   /** The payer chose "Cancel and keep my money" at the final confirmation. */
   reconfirmCancelled: boolean;
+  /**
+   * The screen of the payer's phone. Memory only: it is not in the URL, storage
+   * or a cookie, so a reload starts on "pay". A new scenario keeps it, and the
+   * answer to a payment sends it back to "pay".
+   */
+  phoneScreen: PhoneScreen;
 }
 
 export type ViewSource = "stream" | "poll" | "action";
@@ -54,7 +63,9 @@ export type SimAction =
   | { type: "UNREACHABLE"; retry: (() => void) | null; source?: UnreachableSource }
   | { type: "NOTICE"; notice: Notice | null }
   | { type: "FAST_FORWARD_UNAVAILABLE" }
-  | { type: "CANCEL_RECONFIRM" };
+  | { type: "CANCEL_RECONFIRM" }
+  /** The person picks a screen of the phone. Nothing but the screen changes. */
+  | { type: "SHOW_SCREEN"; screen: PhoneScreen };
 
 export const initialState: SimState = {
   preset: null,
@@ -67,6 +78,7 @@ export const initialState: SimState = {
   notice: null,
   fastForwardHidden: false,
   reconfirmCancelled: false,
+  phoneScreen: "pay",
 };
 
 /**
@@ -84,8 +96,16 @@ export function reduce(s: SimState, a: SimAction): SimState {
   switch (a.type) {
     case "START":
       // The "demo fast-forward is off" finding holds for the whole session, so
-      // it survives a new scenario. Nothing else does.
-      return { ...initialState, preset: a.preset, busy: true, fastForwardHidden: s.fastForwardHidden };
+      // it survives a new scenario. So does the screen the person is on, which
+      // keeps the custom payment form in view while its request is in flight.
+      // Nothing else survives.
+      return {
+        ...initialState,
+        preset: a.preset,
+        busy: true,
+        fastForwardHidden: s.fastForwardHidden,
+        phoneScreen: s.phoneScreen,
+      };
 
     case "EVALUATED": {
       const seq = s.requestSeq + 1;
@@ -98,6 +118,8 @@ export function reduce(s: SimState, a: SimAction): SimState {
         busy: false,
         notice: null,
         reconfirmCancelled: false,
+        // The answer to a payment is shown on the payment screens, whichever screen asked for it.
+        phoneScreen: "pay",
       };
     }
 
@@ -142,5 +164,8 @@ export function reduce(s: SimState, a: SimAction): SimState {
     case "CANCEL_RECONFIRM":
       if (s.vault?.state !== "EXPIRED" || !s.vault.reconfirm_required) return s;
       return { ...s, reconfirmCancelled: true };
+
+    case "SHOW_SCREEN":
+      return { ...s, phoneScreen: a.screen };
   }
 }
