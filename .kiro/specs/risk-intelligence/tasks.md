@@ -560,35 +560,40 @@ Tests sit next to the code they test. Backend property tests use `pgregory.net/r
   - Run in `backend/`: `gofmt -l .` (no output), `go vet ./...`, `go test -race -count=1 ./... -rapid.checks=1000`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 18. Add the front-end groundwork shared by the two new screens
+- [x] 18. Add the front-end groundwork shared by the two new screens
   - GitHub issues: #3 (https://github.com/RahulKumar1119/rukpay/issues/3) and #5 (https://github.com/RahulKumar1119/rukpay/issues/5)
-  - [ ] 18.1 Add the Beneficiary API client to `frontend/src/lib/api.ts`
+  - [x] 18.1 Add the Beneficiary API client to `frontend/src/lib/api.ts`
     - Types `TrustLevel`, `ProtectionLevel`, `RiskIndicator`, `HistoryKind`, `HistoryEntry`, `BeneficiaryView` (no field for a raw identifier), `AddBeneficiaryRequest`, `PatchBeneficiaryRequest` (with the two optional flags), `VerificationAnswers`, `VerificationResult`, `RemoveResult`; `beneficiary_id?` on `EvaluateRequest`; `ErrorBody.beneficiary` and `ApiError.beneficiary` for a 409 with a valid View
     - `request()` accepts `PATCH` and `DELETE` and sends no body for `GET` and `DELETE`. Export `listBeneficiaries`, `addBeneficiary`, `getBeneficiary`, `patchBeneficiary`, `deleteBeneficiary`, `verifyBeneficiary(id, answers)` (id through `encodeURIComponent`, each with an optional `AbortSignal`). No type declares a field named `otp`, `pin`, `password`, `passcode` or `cvv`; no `console` call on any path
+    - **Done, with these choices (design section "`lib/api.ts`"):** `request` has two overload signatures, `GET` and `DELETE` with no body parameter and `POST` and `PATCH` with an optional one, so a body on `GET` or `DELETE` does not compile, and each wrapper passes `undefined` for them. A 409 sets `ApiError.beneficiary` only when `body.beneficiary` is a complete View (`isBeneficiaryView`: every key of `BeneficiaryView` with its type, whole numbers for times, hours and amounts, the known words for the two levels, the six indicators and the nine history kinds, and `verified_at` and `history` either absent or well formed). Like the vault View, it is read from any 409 and not from the code `state_conflict` alone. A 409 that holds a View and no `error` object is a `NetworkError`, as for every non-2xx answer with no readable error body, so the shipped fallback for "a body that is itself a View" was not copied to the recipient. `verifyBeneficiary` sends `{ answers }` and nothing else. No shipped export was renamed or retyped. `ApiError` gained a sixth optional constructor argument, and `ErrorBody` and `EvaluateRequest` gained one optional key each
     - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.9_
 
-  - [ ] 18.2 Write the API client tests
+  - [x] 18.2 Write the API client tests
     - Files: `src/lib/api.beneficiaries.test.ts`, `src/lib/api.beneficiaries.pbt.test.ts`
     - Example tests against the stubbed `fetch`: each of the six calls and evaluate with `beneficiary_id` (method, path, body or no body, parsed result), `PATCH` and `DELETE`, error mapping (`not_found`, `state_conflict` with the View, network failure, 10 s time-out, 5xx, unreadable body, abort), outbound redaction of `otp`, `pin`, `password`, `passcode`, `cvv` and raw identifiers, and no `console` call
     - **Property 37: The client sends redacted bodies and maps errors**
     - **Validates: Requirements 22.2, 22.5, 22.9**
+    - **Done.** Two new files, no edit to an existing test. `api.beneficiaries.pbt.test.ts` holds Property 37 as 14 test functions of 1000 runs each: the bodies of add, patch, verification and evaluate with `beneficiary_id` (checked against the independent redaction oracle of `test/redactionOracle.ts`), `GET`, `DELETE`, `PATCH` and verification ids as one path segment, the 4xx, 409 and 5xx mapping, a 409 with a complete and with a broken View, unreadable 2xx and 4xx bodies, failures the caller did not cause (a stub failure named `AbortError` is still a `NetworkError`), abort before and after the call, and no `console` call. `api.beneficiaries.test.ts` holds the examples and also reads `api.ts` as text to check that no type declares `otp`, `pin`, `password`, `passcode` or `cvv` and that `BeneficiaryView` and the request types have exactly the keys of the design
     - _Requirements: 28.6, 28.9_
 
-  - [ ] 18.3 Add the shared UI pieces
+  - [x] 18.3 Add the shared UI pieces
     - Files: `src/components/ui.ts`, `src/components/SimulationNotice.tsx`, `src/lib/copy.ts`
     - Add `BUTTON_ACTION`, `BUTTON_QUIET`, `FIELD`, `CHOICE_ROW` and the contrast-safe disabled style (dark text on white with a dashed border) using only tokens the smoke test knows (`white`, `slate-50`, `slate-100`, `slate-surface`, `slate-ink`, `amber-surface`, `amber-text`). No red, no new palette colour
     - `SimulationNotice` is an amber `NOTICE_BOX` with an `Info` icon and the one sentence `COPY.simulationNotice`, no close control, no timer. Add the `simulationNotice` string and the `phoneNav` group (labels "Phone screens", "Pay", "Custom payment", "Saved recipients") and append `simulationNotice` and `phoneNav` to `NEW_COPY_GROUPS`
+    - **Done, with these differences (design section "Visual, hit-area and motion rules"):** (a) `FIELD` has more classes than the design's constant: `placeholder:italic placeholder:text-slate-surface`, because Tailwind's default placeholder color is gray-400 (2.5:1 on white) and Requirement 26.3 asks 7:1 for placeholder text, and the dashed, dark-on-white `disabled:` look of the buttons. (b) The hover and pressed backgrounds are `slate-200`, `slate-700` and `slate-900`, as in the design. They are not among the seven tokens of the smoke test's palette, but they sit behind `hover:` and `active:`, where the smoke test reads no color, and the shipped buttons use the same shades. `ui.test.ts` allows them only behind those two variants and measures every state against 7:1. (c) `SimulationNotice` carries `role="note"`, so it is not announced again each time the screen opens. Three test files the task does not name: `components/ui.test.ts`, `components/SimulationNotice.test.tsx` and `lib/copy.groundwork.test.ts`. The shipped Property 38 test covers the new strings through `NEW_COPY_GROUPS` with no edit
     - _Requirements: 22.6, 25.1, 25.5, 26.1, 26.2, 26.3, 26.4, 26.7, 26.8_
 
-  - [ ] 18.4 Add phone navigation state to the simulator
+  - [x] 18.4 Add phone navigation state to the simulator
     - Files: `src/lib/simulatorReducer.ts`, `src/lib/useSimulator.ts`
     - `PhoneScreen = "pay" | "custom" | "saved"`, `phoneScreen` in `SimState` (initial `pay`), action `SHOW_SCREEN` that changes only `phoneScreen`, `EVALUATED` sets `pay`, `START` keeps it. `useSimulator` exposes `showScreen(screen)`. Nothing reads or writes storage, the URL or a cookie. The shipped start-reducer property must pass unchanged
+    - **Done.** `PhoneScreen` is exported from `simulatorReducer.ts`. `showScreen` is a command of `createSimulator`, so like the other commands it keeps its identity from render to render. `startPreset` is unchanged: task 21.6 makes `START` take a `PaymentScenario`
     - _Requirements: 8.5, 22.7, 22.10_
 
-  - [ ] 18.5 Write property test for navigation state
+  - [x] 18.5 Write property test for navigation state
     - File: `src/lib/simulatorReducer.nav.pbt.test.ts`
     - **Property 33: Navigation changes only the screen**
     - **Validates: Requirements 8.5, 22.7, 22.10**
+    - **Done.** The file holds the reducer properties (only `phoneScreen` changes, `EVALUATED` sets `pay`, `START` keeps it, no other action touches it, a model of any run of actions, and a spy check that no action reads or writes storage, a cookie, the address or the history) and five tests of `useSimulator` (`showScreen` changes only the screen and sends nothing, keeps its identity, leaves a vault alone, and the screen stays while a payment is checked and returns to `pay` on the answer). The states come from the shipped `anyState` with the screen set by a spread, so `reducerArbitraries.ts` is not edited
 
 - [ ] 19. Build the saved recipients screen
   - GitHub issue: #5 (https://github.com/RahulKumar1119/rukpay/issues/5)
